@@ -42,6 +42,10 @@ button.ghost:hover{border-color:#3df2ff;color:#fff;box-shadow:none}
 .stats{font-size:17px;line-height:1.75;color:#cfe3ff}
 .stats b{color:#ffd23d}
 .best{color:#3dffb0;font-weight:700}
+.pill{font-size:11.5px;padding:3px 10px;border:1px solid #2b3f6b;border-radius:20px;color:#5d79a8;cursor:help}
+.pill.on{color:#ffd23d;border-color:#ffd23d;box-shadow:0 0 10px rgba(255,210,61,.35)}
+#ach{max-width:760px;gap:6px}
+#build{font-size:18px;letter-spacing:.05em}
 @media(max-width:700px){.card{width:44%;padding:12px 8px}.card .ic{font-size:30px}.chip{width:46%}p.keys{display:none}}
 </style>
 </head>
@@ -50,13 +54,15 @@ button.ghost:hover{border-color:#3df2ff;color:#fff;box-shadow:none}
 
 <div class="ov on" id="menu">
   <h1>НЕОН <span>ШТОРМ</span></h1>
-  <p class="keys"><kbd>WASD</kbd> движение &nbsp; <kbd>Мышь</kbd> прицел (огонь сам) &nbsp; <kbd>Пробел</kbd> рывок<br><kbd>Q</kbd> ударная волна &nbsp; <kbd>P</kbd> пауза &nbsp; <kbd>M</kbd> звук</p>
+  <p class="keys"><kbd>WASD</kbd> движение &nbsp; <kbd>Мышь</kbd> прицел (огонь сам) &nbsp; <kbd>Пробел</kbd> рывок<br><kbd>Q</kbd> ударная волна &nbsp; <kbd>P</kbd> пауза &nbsp; <kbd>M</kbd> звук и музыка</p>
   <p id="touchHint" style="display:none">Слева — стик движения. Тап справа — рывок. Кнопка в углу — ударная волна. Прицел автоматический.</p>
   <h3>КОРАБЛЬ</h3>
   <div class="row" id="ships"></div>
   <h3>АНГАР · ПОСТОЯННЫЕ УЛУЧШЕНИЯ</h3>
   <div class="row" id="shop"></div>
   <p id="coins"></p>
+  <h3 id="achT">ДОСТИЖЕНИЯ</h3>
+  <div class="row" id="ach"></div>
   <button id="play">ИГРАТЬ</button>
   <p class="best" id="menuBest"></p>
 </div>
@@ -65,10 +71,12 @@ button.ghost:hover{border-color:#3df2ff;color:#fff;box-shadow:none}
   <h2>НОВЫЙ УРОВЕНЬ</h2>
   <p>Выбери улучшение</p>
   <div class="cards" id="cards"></div>
+  <button class="ghost" id="reroll"></button>
 </div>
 
 <div class="ov" id="pause">
   <h2>ПАУЗА</h2>
+  <p id="build"></p>
   <button id="resume">ДАЛЬШЕ</button>
   <button class="ghost" id="quit">В АНГАР</button>
 </div>
@@ -118,6 +126,38 @@ const S = {
   zap() { sfx(rnd(1400, 1900), .06, 'sawtooth', .015, -1000); },
   over() { [392, 330, 262, 196].forEach((f, i) => setTimeout(() => sfx(f, .3, 'triangle', .07), i * 160)); }
 };
+
+/* ---------- музыка ---------- */
+const CH = [[55, [220, 261.6, 329.6]], [43.65, [174.6, 220, 261.6]], [65.4, [261.6, 329.6, 392]], [49, [196, 246.9, 293.7]]];
+let mStep = 0, mNext = 0, noiseBuf = null;
+function note(f, t, d, type, v, cut, f2) {
+  const o = ac.createOscillator(), ga = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  ga.gain.setValueAtTime(v, t); ga.gain.exponentialRampToValueAtTime(.0001, t + d);
+  let n = o; if (cut) { const fl = ac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut; o.connect(fl); n = fl; }
+  n.connect(ga).connect(ac.destination); o.start(t); o.stop(t + d + .02);
+}
+function hat(t, v) {
+  if (!noiseBuf) { noiseBuf = ac.createBuffer(1, 2205, 44100); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), ga = ac.createGain(); s.buffer = noiseBuf; fl.type = 'highpass'; fl.frequency.value = 7000;
+  ga.gain.setValueAtTime(v, t); ga.gain.exponentialRampToValueAtTime(.0001, t + .05); s.connect(fl).connect(ga).connect(ac.destination); s.start(t);
+}
+function music() {
+  if (!ac || muted || state !== 'play') { mNext = 0; return; }
+  const st = 60 / 124 / 4, now = ac.currentTime;
+  if (!mNext || mNext < now) mNext = now + .05;
+  const k = clamp(T / 150, 0, 1), bossOn = enemies.some(e => e.type === 'boss');
+  while (mNext < now + .2) {
+    const s = mStep % 16, c = CH[(mStep >> 4) % 4];
+    if (s % 4 === 0) note(150, mNext, .14, 'sine', .11, 0, 40);
+    if ([0, 3, 6, 10, 12, 14].includes(s)) note(c[0] * (s === 14 ? 2 : 1), mNext, .2, 'sawtooth', .045, 380 + k * 900);
+    if (s % 2 === 0 && T > 8) note(c[1][(s / 2) % 3] * (s >= 8 ? 2 : 1) * (bossOn ? 2 : 1), mNext, .13, 'triangle', .016 + .014 * k);
+    if (k > .2 && s % 4 === 2) hat(mNext, .02);
+    if (bossOn && s % 2 === 1) hat(mNext, .012);
+    mStep++; mNext += st;
+  }
+}
+setInterval(music, 60);
 
 /* ---------- спрайты свечения ---------- */
 const glowCache = {};
@@ -183,20 +223,34 @@ const PW = {
   vac:    { ic: '🧲', col: '#b46bff', n: 'ПЫЛЕСОС' }
 };
 const perkCost = l => 40 * (l + 1), PERK_MAX = 5;
+const BOSS = { ring: { n: 'СТРАЖ', col: '#ff2d2d', s: 8 }, spiral: { n: 'СПИРАЛЬ', col: '#ff3dd0', s: 6 }, charger: { n: 'ТАРАН', col: '#ff7a1a', s: 3 } };
+const ACH = [
+  { id: 'k100',  n: 'Сотня',          d: '100 убийств за забег',   r: 20, t: () => kills >= 100 },
+  { id: 'k1000', n: 'Мясорубка',      d: '1000 убийств за забег',  r: 60, t: () => kills >= 1000 },
+  { id: 's2',    n: 'Две минуты',     d: 'Продержись 2:00',        r: 20, t: () => T >= 120 },
+  { id: 's5',    n: 'Пятиминутка',    d: 'Продержись 5:00',        r: 80, t: () => T >= 300 },
+  { id: 'b1',    n: 'Охотник',        d: 'Убей босса',             r: 30, t: () => bossKills >= 1 },
+  { id: 'b3',    n: 'Истребитель',    d: '3 босса за забег',       r: 80, t: () => bossKills >= 3 },
+  { id: 'c100',  n: 'Конвейер',       d: 'Комбо 100',              r: 40, t: () => combo >= 100 },
+  { id: 'l15',   n: 'Перегруз',       d: 'Достигни 15 уровня',     r: 40, t: () => P.lvl >= 15 },
+  { id: 'sc50',  n: 'Рекордсмен',     d: '50 000 очков',           r: 60, t: () => score >= 50000 },
+  { id: 'nd',    n: 'Неприкасаемый',  d: '60 секунд без урона',    r: 40, t: () => T - lastHit >= 60 }
+];
 
 /* ---------- сохранение ---------- */
-const meta = { coins: 0, ship: 'assault', perks: { hp: 0, dmg: 0, spd: 0, xp: 0 } };
+const meta = { coins: 0, ship: 'assault', perks: { hp: 0, dmg: 0, spd: 0, xp: 0 }, ach: {} };
 let best = 0, bestScore = 0;
 try {
   best = +(localStorage.getItem('neonstorm_best') || 0);
   const m = JSON.parse(localStorage.getItem('neonstorm_meta') || 'null');
-  if (m) { Object.assign(meta.perks, m.perks); meta.coins = m.coins | 0; bestScore = m.bestScore | 0; if (SHIPS[m.ship]) meta.ship = m.ship; }
+  if (m) { Object.assign(meta.perks, m.perks); Object.assign(meta.ach, m.ach); meta.coins = m.coins | 0; bestScore = m.bestScore | 0; if (SHIPS[m.ship]) meta.ship = m.ship; }
 } catch (e) {}
 function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Object.assign({ bestScore }, meta))); localStorage.setItem('neonstorm_best', String(Math.floor(best))); } catch (e) {} }
 
 /* ---------- состояние ---------- */
 let state = 'menu', P, bullets, ebullets, enemies, gems, parts, texts, T, kills, spawnT, bossT, bossN, shake, flash, flashCol, eid,
-    combo, comboT, maxCombo, score, freeze, cam = { x: 0, y: 0 };
+    combo, comboT, maxCombo, score, freeze, zones, eventT, meteorT, meteorS, xpBoost, bossKills, lastHit, achT,
+    toastS = '', toastCol = '#fff', toastT = 0, cam = { x: 0, y: 0 };
 const keys = {}, mouse = { x: 0, y: 0 };
 let touchMode = false, stick = null;
 const fmt = s => (s / 60 | 0) + ':' + String(s % 60 | 0).padStart(2, '0');
@@ -207,17 +261,22 @@ function reset() {
   P = { x: 0, y: 0, vx: 0, vy: 0, r: 13, hp: 100, maxHp: 100, speed: 250, rate: 4, dmg: 10, multi: 1, pierce: 0, regen: 0, magnet: 95,
         bs: 760, bl: .95, spread: .13, col: sh.col, xpK: 1 + pk.xp * .1,
         orbs: 0, boom: 0, chain: 0, rockets: 0, frost: 0, vamp: 0, rocketT: 1, rage: 0, ult: 0,
-        crit: .05, dashMax: 1.6, dashCd: 0, dashT: 0, dx: 1, dy: 0, inv: 0, fireT: 0, aim: 0, lvl: 1, xp: 0, need: 4, orbA: 0, ups: {} };
+        rerolls: 2, crit: .05, dashMax: 1.6, dashCd: 0, dashT: 0, dx: 1, dy: 0, inv: 0, fireT: 0, aim: 0, lvl: 1, xp: 0, need: 4, orbA: 0, ups: {} };
   sh.f(P);
   P.maxHp += pk.hp * 10; P.hp = P.maxHp; P.dmg *= 1 + pk.dmg * .08; P.speed *= 1 + pk.spd * .04;
   bullets = []; ebullets = []; enemies = []; gems = []; parts = []; texts = [];
   T = 0; kills = 0; spawnT = 0; bossT = 60; bossN = 0; shake = 0; flash = 0; flashCol = '255,70,110'; eid = 0;
   combo = 0; comboT = 0; maxCombo = 0; score = 0; freeze = 0;
+  zones = []; eventT = 0; meteorT = 0; meteorS = 0; xpBoost = 0; bossKills = 0; lastHit = 0; achT = 1; toastT = 0;
 }
 reset();
 
 function show(id) { for (const o of document.querySelectorAll('.ov')) o.classList.toggle('on', o.id === id); }
 function start() { initAudio(); reset(); state = 'play'; show(null); }
+function announce(s, col) { toastS = s; toastCol = col; toastT = 2.6; }
+function checkAch() {
+  for (const a of ACH) if (!meta.ach[a.id] && a.t()) { meta.ach[a.id] = 1; meta.coins += a.r; announce('🏆 ' + a.n + '  +◈' + a.r, '#ffd23d'); S.lvl(); save(); }
+}
 function toMenu() { state = 'menu'; reset(); renderMenu(); show('menu'); }
 function renderMenu() {
   const sb = $('ships'); sb.innerHTML = '';
@@ -235,11 +294,14 @@ function renderMenu() {
     d.onclick = () => { if (!ok) return; meta.coins -= c; meta.perks[k.id]++; save(); initAudio(); S.pw(); renderMenu(); };
     sp.appendChild(d);
   }
+  const ab = $('ach'); ab.innerHTML = ''; let got = 0;
+  for (const a of ACH) { const on = meta.ach[a.id]; got += on ? 1 : 0; const d = document.createElement('span'); d.className = 'pill' + (on ? ' on' : ''); d.title = a.d + ' · ◈' + a.r; d.textContent = (on ? '🏆 ' : '') + a.n; ab.appendChild(d); }
+  $('achT').textContent = `ДОСТИЖЕНИЯ ${got}/${ACH.length}`;
   $('coins').textContent = '◈ ' + meta.coins + ' кредитов — зарабатываются очками в бою';
   $('menuBest').textContent = best ? `Рекорд: ${fmt(best)} · ${bestScore} очков` : '';
 }
 function gameOver() {
-  state = 'over'; S.over();
+  state = 'over'; S.over(); checkAch();
   const isBest = T > best, earned = Math.floor(score / 400);
   if (isBest) best = T;
   bestScore = Math.max(bestScore, Math.floor(score)); meta.coins += earned; save();
@@ -248,8 +310,8 @@ function gameOver() {
     (isBest ? '<span class="best">★ НОВЫЙ РЕКОРД ★</span>' : `Рекорд: <b>${fmt(best)}</b>`);
   setTimeout(() => { if (state === 'over') show('over'); }, 700);
 }
-function levelUp() {
-  state = 'lvl'; S.lvl();
+function levelUp(again) {
+  state = 'lvl'; if (!again) S.lvl();
   const pool = UPS.filter(u => !u.max || (P.ups[u.id] || 0) < u.max), pick = [];
   while (pick.length < 3 && pool.length) pick.push(pool.splice(Math.random() * pool.length | 0, 1)[0]);
   const box = $('cards'); box.innerHTML = '';
@@ -259,8 +321,10 @@ function levelUp() {
     d.onclick = () => choose(u);
     box.appendChild(d);
   });
+  const rb = $('reroll'); rb.style.display = P.rerolls > 0 ? '' : 'none'; rb.textContent = `🎲 ПЕРЕБРОСИТЬ (${P.rerolls}) · R`;
   levelUp.pick = pick; show('lvl');
 }
+function reroll() { if (state === 'lvl' && P.rerolls > 0) { P.rerolls--; sfx(500, .12, 'square', .04, 300); levelUp(true); } }
 function choose(u) {
   if (state !== 'lvl' || !u) return;
   u.f(P); P.ups[u.id] = (P.ups[u.id] || 0) + 1;
@@ -270,7 +334,7 @@ function choose(u) {
   if (P.xp >= P.need) gainXp(0);
 }
 function gainXp(v) {
-  P.xp += v * P.xpK;
+  P.xp += v * P.xpK * (xpBoost > 0 ? 2 : 1);
   if (P.xp >= P.need && state === 'play') { P.xp -= P.need; P.lvl++; P.need = Math.floor(3 + P.lvl * 3 + P.lvl * P.lvl * .5); levelUp(); }
 }
 
@@ -308,7 +372,32 @@ function spawn(type, x, y) {
   const hp = t.hp * (type === 'boss' ? 1 + bossN * .9 : sc);
   const e = { id: ++eid, type, x, y, r: t.r, hp, maxHp: hp, sp: t.sp * rnd(.9, 1.1) * Math.min(1.5, 1 + T / 500), dmg: t.dmg * (1 + T / 240), col: t.col, n: t.n, xp: t.xp,
               fl: 0, rot: rnd(0, TAU), kx: 0, ky: 0, st: rnd(1, 2.5), oc: 0, slow: 0, slowK: 0, dir: Math.random() < .5 ? 1 : -1 };
+  if (type === 'boss') { e.kind = Object.keys(BOSS)[bossN % 3]; e.col = BOSS[e.kind].col; e.n = BOSS[e.kind].s; e.ph = 0; e.mode = 0; e.ft = 0; e.sa = 0; e.cx = 1; e.cy = 0; }
   enemies.push(e); return e;
+}
+function ringShot(e, n, sp, col) {
+  const o = rnd(0, TAU);
+  for (let k = 0; k < n; k++) { const a = o + k * TAU / n; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, l: 5, dmg: 16, col }); }
+  sfx(160, .25, 'square', .04, -90);
+}
+function bossAI(e, dt, dx, dy) {
+  if (e.kind === 'spiral') {
+    e.ph += dt;
+    if (e.ph % 4 < 2.6 && (e.ft -= dt) <= 0) {
+      e.ft = .13; e.sa += .33;
+      for (let k = 0; k < 3; k++) { const a = e.sa + k * TAU / 3; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 185, vy: Math.sin(a) * 185, l: 5, dmg: 14, col: '#ff7ae0' }); }
+    }
+    return [dx, dy, e.sp * .8];
+  }
+  if (e.kind === 'charger') {
+    e.ph += dt;
+    if (e.mode === 0) { if (e.ph > 1.7) { e.mode = 1; e.ph = 0; sfx(90, .6, 'sawtooth', .06, 300); } return [dx, dy, e.sp * 1.3]; }
+    if (e.mode === 1) { e.fl = .05; if (e.ph < .45) { e.cx = dx; e.cy = dy; } if (e.ph > .7) { e.mode = 2; e.ph = 0; S.dash(); } return [0, 0, 0]; }
+    if (e.ph > .55) { e.mode = 0; e.ph = 0; ringShot(e, 10 + bossN, 200, '#ffb070'); shake = Math.max(shake, 8); }
+    return [e.cx, e.cy, 950];
+  }
+  if ((e.st -= dt) <= 0) { e.st = Math.max(1.1, 2.3 - bossN * .15); ringShot(e, 12 + bossN * 2, 210, '#ff5a5a'); }
+  return [dx, dy, e.sp];
 }
 function pickType() {
   const r = Math.random();
@@ -337,7 +426,7 @@ function die(e) {
   if (e.type === 'splitter') for (let i = 0; i < 3; i++) { const m = spawn('mini', e.x + rnd(-10, 10), e.y + rnd(-10, 10)); const a = rnd(0, TAU); m.kx = Math.cos(a) * 300; m.ky = Math.sin(a) * 300; }
   if (e.type === 'bomber') blast(e.x, e.y, 90, 60 + T * .4, e.armed ? e.dmg * 2.2 : 0);
   if (e.type === 'boss') {
-    S.boom(); flash = .5; flashCol = '255,220,160';
+    S.boom(); flash = .5; flashCol = '255,220,160'; bossKills++;
     for (let i = 0; i < 28; i++) gems.push({ x: e.x + rnd(-70, 70), y: e.y + rnd(-70, 70), v: 3, t: 0 });
     gems.push({ x: e.x, y: e.y, heal: 50, t: 0 });
     gems.push({ x: e.x + 30, y: e.y, pw: 'vac', t: 0 });
@@ -351,7 +440,7 @@ function die(e) {
 function hitPlayer(d) {
   if (P.inv > 0 || state !== 'play') return;
   P.hp -= d; P.inv = .7; shake = 14; flash = .25; flashCol = '255,70,110'; S.hurt();
-  combo = 0;
+  combo = 0; lastHit = T;
   burst(P.x, P.y, '#ff3d7f', 18, 300);
   txt(P.x, P.y - 24, '-' + Math.round(d), '#ff3d7f', 1);
   if (P.hp <= 0) { P.hp = 0; burst(P.x, P.y, P.col, 80, 500, 1.2); ring(P.x, P.y, P.col, 200); shake = 30; gameOver(); }
@@ -443,6 +532,25 @@ function update(dt) {
   bossT -= dt;
   if (bossT <= 0) { bossT = 60; spawn('boss'); bossN++; S.boss(); flash = .3; flashCol = '255,70,110'; txt(P.x, P.y - 70, '⚠ БОСС ⚠', '#ff2d2d', 2); }
 
+  // события
+  if (T > 40 && (eventT -= dt) <= 0) {
+    eventT = rnd(26, 38); const k = Math.random();
+    if (k < .4) {
+      const n = Math.min(60, 22 + T / 8 | 0), d = Math.hypot(W, H) / 2 + 60, o = rnd(0, TAU);
+      for (let i = 0; i < n; i++) { const a = o + i * TAU / n; spawn(i % 4 ? 'grunt' : 'runner', P.x + Math.cos(a) * d, P.y + Math.sin(a) * d); }
+      announce('ОРДА!', '#ff3d7f'); S.boss();
+    } else if (k < .75) { meteorT = 6; announce('МЕТЕОРИТНЫЙ ДОЖДЬ', '#ff8a3d'); S.boss(); }
+    else { xpBoost = 12; announce('ОПЫТ ×2', '#3d9bff'); S.pw(); }
+  }
+  if (meteorT > 0) {
+    meteorT -= dt;
+    if ((meteorS -= dt) <= 0) { meteorS = .22; const a = rnd(0, TAU), r = rnd(0, 340); zones.push({ x: P.x + P.vx * .6 + Math.cos(a) * r, y: P.y + P.vy * .6 + Math.sin(a) * r, r: rnd(55, 85), t: 1.1 }); }
+  }
+  xpBoost = Math.max(0, xpBoost - dt);
+  for (const z of zones) if ((z.t -= dt) <= 0) { z.dead = 1; blast(z.x, z.y, z.r, 90 + T * .5, 20 + T * .05); S.boom(); }
+  zones = zones.filter(z => !z.dead);
+  if ((achT -= dt) <= 0) { achT = 1; checkAch(); }
+
   // враги
   P.orbA += dt * 3.2;
   const orbR = 72, orbs = [];
@@ -452,7 +560,7 @@ function update(dt) {
     const e = enemies[i]; if (e.dead) continue;
     let dx = P.x - e.x, dy = P.y - e.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (d > far && e.type !== 'boss') { const a = rnd(0, TAU), r = far - 380; e.x = P.x + Math.cos(a) * r; e.y = P.y + Math.sin(a) * r; continue; }
-    let mx = dx, my = dy;
+    let mx = dx, my = dy, spd = e.sp;
     e.slow -= dt;
     const mv = fz ? 0 : e.slow > 0 ? 1 - e.slowK * (e.type === 'boss' ? .5 : 1) : 1;
     if (!fz) {
@@ -460,19 +568,13 @@ function update(dt) {
         if (d < 230) { mx = -dx; my = -dy; } else if (d < 330) { mx = -dy * e.dir; my = dx * e.dir; }
         e.st -= dt;
         if (e.st <= 0 && d < 520) { e.st = 2.1; ebullets.push({ x: e.x, y: e.y, vx: dx * 270, vy: dy * 270, l: 4, dmg: e.dmg, col: '#3dffb0' }); }
-      } else if (e.type === 'boss') {
-        e.st -= dt;
-        if (e.st <= 0) {
-          e.st = Math.max(1.1, 2.3 - bossN * .15); const n = 12 + bossN * 2, o = rnd(0, TAU);
-          for (let k = 0; k < n; k++) { const a = o + k * TAU / n; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 210, vy: Math.sin(a) * 210, l: 5, dmg: 16, col: '#ff5a5a' }); }
-          sfx(160, .25, 'square', .04, -90);
-        }
+      } else if (e.type === 'boss') { const m = bossAI(e, dt, dx, dy); mx = m[0]; my = m[1]; spd = m[2];
       } else if (e.type === 'bomber') {
         if (e.fuse === undefined) { if (d < 78) e.fuse = .55; }
         else { e.fuse -= dt; e.fl = .05; mx = my = 0; if (e.fuse <= 0) { e.armed = 1; die(e); continue; } }
       }
     }
-    e.x += (mx * e.sp * mv + e.kx) * dt; e.y += (my * e.sp * mv + e.ky) * dt;
+    e.x += (mx * spd * mv + e.kx) * dt; e.y += (my * spd * mv + e.ky) * dt;
     const kd = Math.exp(-dt * 7); e.kx *= kd; e.ky *= kd;
     if (!fz) e.rot += dt * (e.type === 'boss' ? .6 : 2);
     e.fl -= dt; e.oc -= dt;
@@ -547,7 +649,7 @@ function updateFx(dt) {
   parts = parts.filter(p => p.l > 0);
   for (const t of texts) { t.l -= dt; t.y -= 42 * dt; }
   texts = texts.filter(t => t.l > 0);
-  shake *= Math.exp(-dt * 9); flash = Math.max(0, flash - dt);
+  shake *= Math.exp(-dt * 9); flash = Math.max(0, flash - dt); toastT = Math.max(0, toastT - dt);
 }
 
 /* ---------- отрисовка ---------- */
@@ -579,6 +681,11 @@ function draw() {
     if (m.heal) { g.fillRect(m.x - 2, m.y - r, 4, r * 2); g.fillRect(m.x - r, m.y - 2, r * 2, 4); }
     else { poly(m.x, m.y + Math.sin(m.t * 5) * 2, r, 4, 0); g.fill(); }
   }
+  // метеоритные зоны
+  for (const z of zones) {
+    g.strokeStyle = 'rgba(255,90,45,.85)'; g.lineWidth = 2; g.beginPath(); g.arc(z.x, z.y, z.r, 0, TAU); g.stroke();
+    g.fillStyle = 'rgba(255,90,45,.28)'; g.beginPath(); g.arc(z.x, z.y, z.r * (1 - z.t / 1.1), 0, TAU); g.fill();
+  }
   // частицы
   for (const p of parts) {
     const a = p.l / p.m; g.globalAlpha = a;
@@ -598,7 +705,10 @@ function draw() {
     poly(e.x, e.y, e.r, e.n, e.type === 'grunt' || e.type === 'runner' ? Math.atan2(P.y - e.y, P.x - e.x) : e.rot);
     g.fillStyle = e.fl > 0 ? '#fff' : 'rgba(10,10,25,.9)'; g.globalCompositeOperation = 'source-over'; g.fill();
     g.globalCompositeOperation = 'lighter'; g.strokeStyle = e.fl > 0 ? '#fff' : col; g.lineWidth = e.type === 'boss' ? 4 : 2.2; g.stroke();
-    if (e.type === 'boss') { poly(e.x, e.y, e.r * .5, 4, -e.rot * 2); g.stroke(); }
+    if (e.type === 'boss') {
+      poly(e.x, e.y, e.r * .5, 4, -e.rot * 2); g.stroke();
+      if (e.kind === 'charger' && e.mode === 1) { g.strokeStyle = 'rgba(255,120,40,.45)'; g.lineWidth = 10; g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(e.x + e.cx * 620, e.y + e.cy * 620); g.stroke(); }
+    }
     else if (e.maxHp > 60 && e.hp < e.maxHp) { g.fillStyle = col; g.fillRect(e.x - e.r, e.y - e.r - 10, e.r * 2 * e.hp / e.maxHp, 3); }
     if (e.elite) { g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 1.5; g.setLineDash([5, 5]); g.lineDashOffset = -T * 20; g.beginPath(); g.arc(e.x, e.y, e.r + 6, 0, TAU); g.stroke(); g.setLineDash([]); }
     if (e.fuse !== undefined) { g.strokeStyle = 'rgba(255,90,45,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(e.x, e.y, 90 * (1 - Math.max(0, e.fuse) / .55), 0, TAU); g.stroke(); }
@@ -662,7 +772,8 @@ function draw() {
   g.fillStyle = '#cfe3ff'; g.font = '700 14px "Segoe UI",Arial'; g.fillText('УР. ' + P.lvl, 16, 58);
   let ey = 78;
   if (P.rage > 0) { g.fillStyle = '#ffa53d'; g.fillText('ЯРОСТЬ ' + P.rage.toFixed(1), 16, ey); ey += 18; }
-  if (fz) { g.fillStyle = '#7fd8ff'; g.fillText('ЗАМОРОЗКА ' + freeze.toFixed(1), 16, ey); }
+  if (fz) { g.fillStyle = '#7fd8ff'; g.fillText('ЗАМОРОЗКА ' + freeze.toFixed(1), 16, ey); ey += 18; }
+  if (xpBoost > 0) { g.fillStyle = '#3d9bff'; g.fillText('ОПЫТ ×2  ' + xpBoost.toFixed(1), 16, ey); }
   g.textAlign = 'center'; g.font = '800 26px "Segoe UI",Arial'; g.fillStyle = '#fff'; g.fillText(fmt(T), W / 2, 44);
   if (combo >= 3) {
     const m = mult();
@@ -677,7 +788,13 @@ function draw() {
     const w = Math.min(520, W - 220), x = (W - w) / 2, y = H - 38;
     g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(x, y, w, 12);
     g.fillStyle = '#ff2d2d'; g.fillRect(x, y, w * boss.hp / boss.maxHp, 12);
-    g.textAlign = 'center'; g.fillStyle = '#ff8080'; g.font = '800 13px "Segoe UI",Arial'; g.fillText('БОСС', W / 2, y - 6);
+    g.textAlign = 'center'; g.fillStyle = '#ff8080'; g.font = '800 13px "Segoe UI",Arial'; g.fillText(BOSS[boss.kind].n, W / 2, y - 6);
+    arrow(boss.x, boss.y, boss.col);
+  }
+  for (const m of gems) if (m.pw) arrow(m.x, m.y, PW[m.pw].col); else if (m.heal) arrow(m.x, m.y, '#3dffb0');
+  if (toastT > 0) {
+    g.globalAlpha = Math.min(1, toastT * 1.5); g.textAlign = 'center'; g.font = '900 30px "Segoe UI",Arial';
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillText(toastS, W / 2 + 2, H * .24 + 2); g.fillStyle = toastCol; g.fillText(toastS, W / 2, H * .24); g.globalAlpha = 1;
   }
   // ударная волна
   const ux = W - 60, uy = H - 60, full = P.ult >= 1;
@@ -690,6 +807,13 @@ function draw() {
     g.strokeStyle = 'rgba(61,242,255,.4)'; g.lineWidth = 2; g.beginPath(); g.arc(stick.ox, stick.oy, 50, 0, TAU); g.stroke();
     g.fillStyle = 'rgba(61,242,255,.4)'; g.beginPath(); g.arc(stick.ox + stick.dx * 50, stick.oy + stick.dy * 50, 22, 0, TAU); g.fill();
   }
+}
+
+function arrow(wx, wy, col) {
+  const x = wx - cam.x + W / 2, y = wy - cam.y + H / 2;
+  if (x > 0 && x < W && y > 0 && y < H) return;
+  g.save(); g.translate(clamp(x, 26, W - 26), clamp(y, 90, H - 26)); g.rotate(Math.atan2(y - H / 2, x - W / 2));
+  g.fillStyle = col; g.globalAlpha = .6 + Math.sin(T * 8) * .3; g.beginPath(); g.moveTo(12, 0); g.lineTo(-8, 9); g.lineTo(-8, -9); g.closePath(); g.fill(); g.restore();
 }
 
 /* ---------- цикл ---------- */
@@ -705,7 +829,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 /* ---------- ввод ---------- */
-function togglePause() { if (state === 'play') { state = 'pause'; show('pause'); } else if (state === 'pause') { state = 'play'; show(null); } }
+function togglePause() { if (state === 'play') { state = 'pause'; $('build').textContent = UPS.filter(u => P.ups[u.id]).map(u => u.ic + '×' + P.ups[u.id]).join('   ') || 'Улучшений пока нет'; show('pause'); } else if (state === 'pause') { state = 'play'; show(null); } }
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -714,6 +838,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ' || e.code === 'KeyE') ult();
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
   if (e.code === 'KeyM') muted = !muted;
+  if (e.code === 'KeyR') reroll();
   if (state === 'lvl' && /^(Digit|Numpad)[1-3]$/.test(e.code)) choose(levelUp.pick[+e.code.slice(-1) - 1]);
   if (e.code === 'Enter' && (state === 'menu' || (state === 'over' && $('over').classList.contains('on')))) start();
 });
@@ -735,7 +860,7 @@ addEventListener('pointermove', e => {
 const up = e => { if (stick && e.pointerId === stick.id) stick = null; };
 addEventListener('pointerup', up); addEventListener('pointercancel', up);
 $('play').onclick = start; $('again').onclick = start; $('resume').onclick = togglePause;
-$('hangar').onclick = toMenu; $('quit').onclick = toMenu;
+$('reroll').onclick = reroll; $('hangar').onclick = toMenu; $('quit').onclick = toMenu;
 if (matchMedia('(pointer:coarse)').matches) $('touchHint').style.display = 'block';
 renderMenu();
 </script>
