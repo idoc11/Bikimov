@@ -65,6 +65,7 @@ button.ghost:hover{border-color:#3df2ff;color:#fff;box-shadow:none}
   <h3>КОРАБЛЬ</h3>
   <div class="row" id="ships"></div>
   <div class="row" id="opts"></div>
+  <div class="row" id="muts"></div>
   <button id="play">ИГРАТЬ</button>
   <h3>АНГАР · ПОСТОЯННЫЕ УЛУЧШЕНИЯ</h3>
   <div class="row" id="shop"></div>
@@ -264,6 +265,20 @@ const PW = {
 const perkCost = l => 40 * (l + 1), PERK_MAX = 5;
 const BOSS = { ring: { n: 'СТРАЖ', col: '#ff2d2d', s: 8 }, spiral: { n: 'СПИРАЛЬ', col: '#ff3dd0', s: 6 }, charger: { n: 'ТАРАН', col: '#ff7a1a', s: 3 }, core: { n: 'ЯДРО ШТОРМА', col: '#ffffff', s: 10 } };
 const CORE_T = 480;
+const MUT = [
+  { id: 'swarm',  n: 'Рой',       d: 'Врагов вдвое больше',            k: .5 },
+  { id: 'frail',  n: 'Хрупкость', d: 'Макс. HP вдвое меньше',          k: .4 },
+  { id: 'nodash', n: 'Без рывка', d: 'Рывок отключён',                 k: .3 },
+  { id: 'dark',   n: 'Туман',     d: 'Видно только рядом с кораблём',  k: .3 }
+];
+const coinK = () => DIFF[meta.diff].coin * (1 + MUT.reduce((a, m) => a + (meta.mut[m.id] ? m.k : 0), 0));
+const SHAPES = {
+  assault:  [17, 0, -11, 11, -5, 0, -11, -11],
+  sniper:   [23, 0, -12, 7, -7, 0, -12, -7],
+  berserk:  [14, 0, -9, 15, -2, 0, -9, -15],
+  ghost:    [18, 0, -13, 10, 3, 0, -13, -10],
+  engineer: [16, 0, 0, 11, -13, 6, -13, -6, 0, -11]
+};
 const SECT = [{ n: 'ОКРАИНА', c: '61,120,255' }, { n: 'ПОЯС ОБЛОМКОВ', c: '180,107,255' }, { n: 'ТУМАННОСТЬ', c: '61,255,176' }, { n: 'СЕРДЦЕ ШТОРМА', c: '255,90,90' }];
 const EVO = {
   orb:    { n: 'КОЛЬЦО ЛЕЗВИЙ',    d: 'клинки шире, быстрее и вдвое сильнее' },
@@ -291,14 +306,14 @@ const ACH = [
 
 /* ---------- сохранение ---------- */
 const meta = { coins: 0, ship: 'assault', perks: { hp: 0, dmg: 0, spd: 0, xp: 0, mag: 0, ult: 0, luck: 0, rr: 0 }, ach: {},
-  ships: { assault: 1, sniper: 1, berserk: 1 }, diff: 'norm', vol: 1, shake: true, runs: 0, top: [] };
+  ships: { assault: 1, sniper: 1, berserk: 1 }, diff: 'norm', vol: 1, shake: true, runs: 0, top: [], mut: {}, stat: { k: 0, t: 0, w: 0 } };
 let best = 0, bestScore = 0;
 try {
   best = +(localStorage.getItem('neonstorm_best') || 0);
   const m = JSON.parse(localStorage.getItem('neonstorm_meta') || 'null');
   if (m) { Object.assign(meta.perks, m.perks); Object.assign(meta.ach, m.ach); Object.assign(meta.ships, m.ships);
     if (DIFF[m.diff]) meta.diff = m.diff; if (typeof m.vol === 'number') meta.vol = m.vol; if (m.shake === false) meta.shake = false;
-    meta.runs = m.runs | 0; if (Array.isArray(m.top)) meta.top = m.top.slice(0, 5); meta.coins = m.coins | 0; bestScore = m.bestScore | 0; if (SHIPS[m.ship] && meta.ships[m.ship]) meta.ship = m.ship; }
+    meta.runs = m.runs | 0; Object.assign(meta.mut, m.mut); Object.assign(meta.stat, m.stat); if (Array.isArray(m.top)) meta.top = m.top.slice(0, 5); meta.coins = m.coins | 0; bestScore = m.bestScore | 0; if (SHIPS[m.ship] && meta.ships[m.ship]) meta.ship = m.ship; }
 } catch (e) {}
 function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Object.assign({ bestScore }, meta))); localStorage.setItem('neonstorm_best', String(Math.floor(best))); } catch (e) {} }
 
@@ -333,6 +348,7 @@ function reset() {
   sh.f(P);
   P.maxHp += pk.hp * 10; P.hp = P.maxHp; P.dmg *= 1 + pk.dmg * .08; P.speed *= 1 + pk.spd * .04;
   P.magnet *= 1 + pk.mag * .15; P.rerolls += pk.rr;
+  if (meta.mut.frail) P.hp = P.maxHp = Math.round(P.maxHp * .5);
   coreDone = 0; won = false; curSec = 0;
   bullets = []; ebullets = []; enemies = []; gems = []; parts = []; texts = [];
   T = 0; kills = 0; spawnT = 0; bossT = 60; bossN = 0; shake = 0; flash = 0; flashCol = '255,70,110'; eid = 0;
@@ -345,7 +361,7 @@ function show(id) { for (const o of document.querySelectorAll('.ov')) o.classLis
 function start() { initAudio(); reset(); state = 'play'; show(null); }
 function buildStr() { return UPS.filter(u => P.ups[u.id]).map(u => u.ic + '×' + P.ups[u.id] + (P.evo[u.id] ? '⭐' : '')).concat(RELICS.filter(r => P.relics[r.id]).map(r => r.ic)).join('   '); }
 function victory() {
-  won = true; state = 'win'; meta.coins += 100; checkAch(); save(); S.lvl(); slowmo = 1.2;
+  won = true; state = 'win'; meta.coins += 100; meta.stat.w++; checkAch(); save(); S.lvl(); slowmo = 1.2;
   $('winStats').innerHTML = `Время: <b>${fmt(T)}</b> &nbsp; Очки: <b>${Math.floor(score)}</b> &nbsp; Убито: <b>${kills}</b><br>Премия: <b>◈ 100</b>`;
   setTimeout(() => { if (state === 'win') show('win'); }, 1400);
 }
@@ -380,18 +396,20 @@ function renderMenu() {
   pill('🔊 ' + Math.round(meta.vol * 100) + '%', false, () => { meta.vol = meta.vol > .9 ? .6 : meta.vol > .5 ? .3 : meta.vol > .2 ? 0 : 1; if (out) out.gain.value = meta.vol; save(); renderMenu(); });
   pill('Тряска: ' + (meta.shake ? 'вкл' : 'выкл'), false, () => { meta.shake = !meta.shake; save(); renderMenu(); });
   pill('⛶ Во весь экран', false, () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} });
+  const mb = $('muts'); mb.innerHTML = '';
+  for (const m of MUT) { const d = document.createElement('span'); d.className = 'pill btn' + (meta.mut[m.id] ? ' on' : ''); d.title = m.d; d.textContent = `☠ ${m.n} · +${m.k * 100}% ◈`; d.onclick = () => { meta.mut[m.id] = !meta.mut[m.id]; save(); renderMenu(); }; mb.appendChild(d); }
   const ab = $('ach'); ab.innerHTML = ''; let got = 0;
   for (const a of ACH) { const on = meta.ach[a.id]; got += on ? 1 : 0; const d = document.createElement('span'); d.className = 'pill' + (on ? ' on' : ''); d.title = a.d + ' · ◈' + a.r; d.textContent = (on ? '🏆 ' : '') + a.n; ab.appendChild(d); }
   $('achT').textContent = `ДОСТИЖЕНИЯ ${got}/${ACH.length}`;
-  $('coins').textContent = '◈ ' + meta.coins + ' кредитов — за время, убийства и боссов';
+  $('coins').textContent = `◈ ${meta.coins} кредитов — за время, убийства и боссов${coinK() !== 1 ? ' · множитель ×' + (+coinK().toFixed(2)) : ''}`;
   $('menuBest').textContent = best ? `Рекорд по времени: ${fmt(best)}` : '';
-  $('top').innerHTML = meta.top.map((r, i) => `${i + 1}. <b>${r.s}</b> · ${fmt(r.t)} · ${(SHIPS[r.ship] || {}).n || '?'} · ${(DIFF[r.diff] || {}).n || '?'}`).join('<br>');
+  $('top').innerHTML = (meta.runs ? `Всего: забегов ${meta.runs} · побед ${meta.stat.w} · убито ${meta.stat.k} · в бою ${fmt(meta.stat.t)}<br>` : '') + meta.top.map((r, i) => `${i + 1}. <b>${r.s}</b> · ${fmt(r.t)} · ${(SHIPS[r.ship] || {}).n || '?'} · ${(DIFF[r.diff] || {}).n || '?'}`).join('<br>');
 }
 function gameOver() {
   state = 'over'; S.over(); checkAch(); $('overH').textContent = won ? 'ЗАБЕГ ЗАВЕРШЁН' : 'ТЕБЯ СМЕЛИ';
-  const isBest = T > best, earned = Math.floor((T / 6 + kills / 60 + bossKills * 15) * DIFF[meta.diff].coin * P.scoreK);
+  const isBest = T > best, earned = Math.floor((T / 6 + kills / 60 + bossKills * 15) * coinK() * P.scoreK);
   if (isBest) best = T;
-  bestScore = Math.max(bestScore, Math.floor(score)); meta.coins += earned; meta.runs++;
+  bestScore = Math.max(bestScore, Math.floor(score)); meta.coins += earned; meta.runs++; meta.stat.k += kills; meta.stat.t += Math.floor(T);
   meta.top.push({ s: Math.floor(score), t: Math.floor(T), ship: meta.ship, diff: meta.diff }); meta.top.sort((a, b) => b.s - a.s); meta.top.length = Math.min(5, meta.top.length); save();
   $('stats').innerHTML = `Очки: <b>${Math.floor(score)}</b> &nbsp; Время: <b>${fmt(T)}</b><br>Убито: <b>${kills}</b> &nbsp; Уровень: <b>${P.lvl}</b> &nbsp; Макс. комбо: <b>${maxCombo}</b><br>` +
     `Заработано: <b>◈ ${earned}</b> (всего ${meta.coins})<br><span id="build2">${buildStr()}</span><br>` +
@@ -467,10 +485,10 @@ function zap(from, d) {
 
 /* ---------- враги ---------- */
 function spawn(type, x, y) {
-  const t = TYPES[type], sc = 1 + T / 75 + Math.pow(T / 140, 2.5);
+  const t = TYPES[type], sc = 1 + T / 75 + Math.pow(T / 170, 2.2);
   if (x === undefined) { const a = rnd(0, TAU), d = Math.hypot(W, H) / 2 + 70; x = P.x + Math.cos(a) * d; y = P.y + Math.sin(a) * d; }
   const hp = t.hp * (type === 'boss' ? (1 + bossN * .9) * (1 + (T / 200) ** 2) : sc) * DIFF[meta.diff].hp;
-  const e = { id: ++eid, type, x, y, r: t.r, hp, maxHp: hp, sp: t.sp * rnd(.9, 1.1) * Math.min(1.5, 1 + T / 500), dmg: t.dmg * (1 + T / 200 + (T / 300) ** 2), col: t.col, n: t.n, xp: t.xp,
+  const e = { id: ++eid, type, x, y, r: t.r, hp, maxHp: hp, sp: t.sp * rnd(.9, 1.1) * Math.min(1.5, 1 + T / 500), dmg: t.dmg * (1 + T / 240 + (T / 400) ** 2), col: t.col, n: t.n, xp: t.xp,
               fl: 0, rot: rnd(0, TAU), kx: 0, ky: 0, st: rnd(1, 2.5), oc: 0, slow: 0, slowK: 0, dir: Math.random() < .5 ? 1 : -1 };
   if (type === 'boss') { e.kind = Object.keys(BOSS)[bossN % 3]; e.col = BOSS[e.kind].col; e.n = BOSS[e.kind].s; e.ph = 0; e.mode = 0; e.ft = 0; e.sa = 0; e.cx = 1; e.cy = 0; }
   enemies.push(e); return e;
@@ -567,7 +585,7 @@ function hitPlayer(d) {
   if (P.hp <= 0) { P.hp = 0; burst(P.x, P.y, P.col, 80, 500, 1.2); ring(P.x, P.y, P.col, 200); shake = 30; gameOver(); }
 }
 function dash() {
-  if (state !== 'play' || P.dashCd > 0) return;
+  if (state !== 'play' || P.dashCd > 0 || meta.mut.nodash) return;
   let dx = P.vx, dy = P.vy; const m = Math.hypot(dx, dy);
   if (m < 20) { dx = Math.cos(P.aim); dy = Math.sin(P.aim); } else { dx /= m; dy /= m; }
   P.dx = dx; P.dy = dy; P.dashT = .17; P.dashCd = P.dashMax; P.inv = Math.max(P.inv, .3); S.dash();
@@ -661,7 +679,7 @@ function update(dt) {
   spawnT -= dt;
   if (spawnT <= 0 && enemies.length < 320) {
     spawnT = Math.max(.1, .6 - T * .004);
-    const n = 1 + (T / 50 | 0) * (Math.random() < .5 ? 1 : 0);
+    const n = (1 + (T / 50 | 0) * (Math.random() < .5 ? 1 : 0)) * (meta.mut.swarm ? 2 : 1);
     for (let i = 0; i < n; i++) {
       const e = spawn(pickType());
       if (T > 30 && e.type !== 'bomber' && Math.random() < Math.min(.07, .02 + T / 5000)) { e.elite = 1; e.hp = e.maxHp = e.hp * 4; e.r *= 1.35; e.xp *= 4; }
@@ -801,7 +819,7 @@ function update(dt) {
       if (m.relic) relicChoice();
       else if (m.pw) applyPw(m.pw);
       else if (m.heal) { P.hp = Math.min(P.maxHp, P.hp + m.heal); txt(P.x, P.y - 24, '+' + m.heal, '#3dffb0', 1); } else gainXp(m.v);
-    } else if (m.pw && m.t > 20) m.dead = 1;
+    } else if ((m.pw && m.t > 20) || (m.heal && m.t > 40)) m.dead = 1;
   }
 
   bullets = bullets.filter(b => b.l > 0); ebullets = ebullets.filter(b => b.l > 0);
@@ -903,7 +921,7 @@ function draw() {
     const blink = P.inv > 0 && P.dashT <= 0 && (T * 20 | 0) % 2;
     drawGlow(P.x, P.y, P.rage > 0 ? 60 : 46, pc, blink ? .3 : 1);
     g.save(); g.translate(P.x, P.y); g.rotate(P.aim);
-    g.beginPath(); g.moveTo(17, 0); g.lineTo(-11, 11); g.lineTo(-5, 0); g.lineTo(-11, -11); g.closePath();
+    const sp = SHAPES[meta.ship] || SHAPES.assault; g.beginPath(); g.moveTo(sp[0], sp[1]); for (let i = 2; i < sp.length; i += 2) g.lineTo(sp[i], sp[i + 1]); g.closePath();
     g.globalCompositeOperation = 'source-over'; g.fillStyle = '#06131c'; g.fill();
     g.globalCompositeOperation = 'lighter'; g.strokeStyle = blink ? 'rgba(255,255,255,.35)' : pc; g.lineWidth = 2.5; g.lineJoin = 'round'; g.stroke();
     g.restore();
@@ -932,6 +950,10 @@ function draw() {
   if (state === 'play' && P.hp < P.maxHp * .3) {
     const dg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .7);
     dg.addColorStop(0, 'rgba(255,0,60,0)'); dg.addColorStop(1, `rgba(255,0,60,${.22 + Math.sin(T * 7) * .1})`); g.fillStyle = dg; g.fillRect(0, 0, W, H);
+  }
+  if (meta.mut.dark && state !== 'menu') {
+    const fg = g.createRadialGradient(W / 2, H / 2, 150, W / 2, H / 2, 360);
+    fg.addColorStop(0, 'rgba(0,0,6,0)'); fg.addColorStop(1, 'rgba(0,0,6,.94)'); g.fillStyle = fg; g.fillRect(0, 0, W, H);
   }
   if (flash > 0) { g.fillStyle = `rgba(${flashCol},${flash * .7})`; g.fillRect(0, 0, W, H); }
   if (state === 'menu') return;
