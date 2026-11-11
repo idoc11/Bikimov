@@ -62,6 +62,7 @@ button.ghost:active{padding:13px 20px 11px;box-shadow:none}
 #coins{font:400 10px/1.7 var(--head);color:var(--acc)}
 .stats{font-size:22px;line-height:1.7;color:#fff}
 .stats b{font:400 13px var(--head);color:var(--acc)}
+.stats .tip{display:inline-block;max-width:560px;color:var(--mut);font-size:19px;line-height:1.3}.stats .tip b{font:700 19px var(--body);color:#f6757a}
 .best{color:var(--grn);font:400 10px var(--head);line-height:1.8}
 #top{font:500 18px/1.4 var(--body);color:var(--dim)}
 #top b{color:#fff}
@@ -77,7 +78,7 @@ button.ghost:active{padding:13px 20px 11px;box-shadow:none}
 
 <div class="ov on" id="menu">
   <h1>Шторм</h1>
-  <div class="sub">АРКАДА НА ВЫЖИВАНИЕ<br>8 МИНУТ ДО ЯДРА</div>
+  <div class="sub">АРКАДА НА ВЫЖИВАНИЕ</div>
   <p class="keys"><kbd>WASD</kbd> движение &nbsp; <kbd>Мышь</kbd> прицел (огонь сам) &nbsp; <kbd>Пробел</kbd> рывок<br><kbd>Q</kbd> способность корабля &nbsp; <kbd>P</kbd> пауза &nbsp; <kbd>M</kbd> звук и музыка</p>
   <p id="touchHint" style="display:none">Слева — стик движения. Тап справа — рывок. Кнопка в углу — способность корабля. Прицел автоматический.</p>
   <h3>КОРАБЛЬ</h3>
@@ -296,7 +297,7 @@ function pxLine(x0, y0, x1, y1, col, w, dash) { const n = Math.ceil(Math.max(Mat
 const GLYPH = { bomb: '...#..##..####.####..##..', frost: '#.#.#.###.#####.###.#.#.#', rage: '..#...##...###.#####.###.', magnet: '#...##...##...###.##.###.', crown: '#.#.##.#.###########.....' };
 function token(x, y, col, icon) { dot(x, y, 8, '#181425'); dot(x, y, 7, col); dot(x, y, 6, '#262b44'); g.fillStyle = '#ffffff'; const gl = GLYPH[icon]; for (let i = 0; i < 25; i++) if (gl[i] === '#') g.fillRect(x - 2 + i % 5, y - 2 + (i / 5 | 0), 1, 1); }
 // фон: туманность с дизерингом и пиксельная планета на каждый сектор, звёзды точками
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5], NEB = [], PLANET = [];
+const NEB = [], PLANET = [];
 function mkStars(n) { const a = []; for (let i = 0; i < n; i++) { const t = Math.random(); a.push({ x: Math.random(), y: Math.random(), c: t < .12 ? '#fee761' : t < .26 ? '#2ce8f5' : t < .5 ? '#8b9bb4' : '#ffffff', b: Math.random() < .2, p: Math.random() * 9 }); } return a; }
 const STAR_L = [[mkStars(46), .08], [mkStars(22), .2], [mkStars(10), .45]];
 function nebula(i) {
@@ -322,11 +323,7 @@ function planet(i) {
 }
 function label(s, x, y, col, size) { g.font = `${size}px ${PF}`; g.fillStyle = '#181425'; g.fillText(s, x + (size > 8 ? 2 : 1), y + (size > 8 ? 2 : 1)); g.fillStyle = col; g.fillText(s, x, y); }
 function frame9(x, y, w, h, fill, border) { g.fillStyle = '#181425'; g.fillRect(x - 3, y, w + 6, h); g.fillRect(x, y - 3, w, h + 6); g.fillStyle = border; g.fillRect(x, y, w, h); g.fillStyle = fill; g.fillRect(x + 3, y + 3, w - 6, h - 6); }
-function poly(x, y, r, n, rot) {
-  g.beginPath();
-  for (let i = 0; i < n; i++) { const a = rot + i * TAU / n; i ? g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
-  g.closePath();
-}
+
 
 /* ---------- данные ---------- */
 const TYPES = {
@@ -399,7 +396,6 @@ for (const u of UPS.concat(RELICS)) u.ic = ico(u.id);
 const P2D = {}; const iconPath = id => P2D[id] || (P2D[id] = new Path2D(ICON[id]));
 const RELIC_PW = { ic: 'crown', col: '#ffd24a' };
 const DIFF = { easy: { n: 'Лёгкая', hp: .7, dmg: .6, coin: .6 }, norm: { n: 'Норма', hp: 1, dmg: 1, coin: 1 }, hard: { n: 'Кошмар', hp: 1.5, dmg: 1.5, coin: 2 } };
-const STARS = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), z: .15 + Math.random() * .35, s: .6 + Math.random() * 1.2 }));
 const PERKS = [
   { id: 'hp',  n: 'Корпус',    d: '+10 HP за уровень' },
   { id: 'dmg', n: 'Орудия',    d: '+8% урона' },
@@ -418,7 +414,7 @@ const PW = {
 };
 const perkCost = l => 40 * (l + 1), PERK_MAX = 5;
 const BOSS = { ring: { n: 'СТРАЖ', col: '#e43b44', s: 8 }, spiral: { n: 'СПИРАЛЬ', col: '#0099db', s: 6 }, charger: { n: 'ТАРАН', col: '#f77622', s: 3 }, core: { n: 'ЯДРО ШТОРМА', col: '#feae34', s: 10 } };
-const CORE_T = 480;
+const CORE_T = 480, ARENA = 540; // радиус арены в босс-раше
 const MUT = [
   { id: 'swarm',  n: 'Рой',       d: 'Врагов вдвое больше',            k: .5 },
   { id: 'frail',  n: 'Хрупкость', d: 'Макс. HP вдвое меньше',          k: .4 },
@@ -438,14 +434,9 @@ const CODEX = [
   ['charger', 'Таран · босс', 'Замирает, показывает полосу и несётся по ней. Уходи вбок.'],
   ['core', 'Ядро шторма', 'Финал на 8:00: спирали, кольца и призыв. Победа завершает забег.']
 ];
+const KILLER = { storm: ['Стена шторма', 'В босс-раше нельзя выходить за красный круг — снаружи корабль разрушается.'], meteor: ['Метеорит', 'Красный круг — место удара: выйди из него до взрыва.'], mini: ['Осколок улья', 'Мелкие и быстрые — держи дистанцию после гибели улья.'] };
+for (const [k, n, d] of CODEX) KILLER[k] = [n.replace(' · босс', ''), d.replace(/ С \d:\d\d\.$/, '')];
 const coinK = () => DIFF[meta.diff].coin * (1 + MUT.reduce((a, m) => a + (meta.mut[m.id] ? m.k : 0), 0));
-const SHAPES = {
-  assault:  [17, 0, -11, 11, -5, 0, -11, -11],
-  sniper:   [23, 0, -12, 7, -7, 0, -12, -7],
-  berserk:  [14, 0, -9, 15, -2, 0, -9, -15],
-  ghost:    [18, 0, -13, 10, 3, 0, -13, -10],
-  engineer: [16, 0, 0, 11, -13, 6, -13, -6, 0, -11]
-};
 const SECT = [
   { n: 'ОКРАИНА',        neb: ['#0e0c1a', '#181b33', '#1c2a4d'], ramp: ['#181425', '#262b44', '#124e89', '#0099db', '#2ce8f5'] },
   { n: 'ПОЯС ОБЛОМКОВ',  neb: ['#0e0c1a', '#24162e', '#3b2148'], ramp: ['#181425', '#3e2731', '#68386c', '#b55088', '#f6757a'] },
@@ -478,13 +469,13 @@ const ACH = [
 
 /* ---------- сохранение ---------- */
 const meta = { coins: 0, ship: 'assault', perks: { hp: 0, dmg: 0, spd: 0, xp: 0, mag: 0, ult: 0, luck: 0, rr: 0 }, ach: {},
-  ships: { assault: 1, sniper: 1, berserk: 1 }, diff: 'norm', vol: 1, shake: true, runs: 0, top: [], mut: {}, stat: { k: 0, t: 0, w: 0 }, daily: { date: '', done: {} } };
+  ships: { assault: 1, sniper: 1, berserk: 1 }, diff: 'norm', mode: 'classic', vol: 1, shake: true, runs: 0, top: [], mut: {}, stat: { k: 0, t: 0, w: 0 }, daily: { date: '', done: {} } };
 let best = 0, bestScore = 0;
 try {
   best = +(localStorage.getItem('neonstorm_best') || 0);
   const m = JSON.parse(localStorage.getItem('neonstorm_meta') || 'null');
   if (m) { Object.assign(meta.perks, m.perks); Object.assign(meta.ach, m.ach); Object.assign(meta.ships, m.ships);
-    if (DIFF[m.diff]) meta.diff = m.diff; if (typeof m.vol === 'number') meta.vol = m.vol; if (m.shake === false) meta.shake = false;
+    if (DIFF[m.diff]) meta.diff = m.diff; if (m.mode === 'rush') meta.mode = 'rush'; if (typeof m.vol === 'number') meta.vol = m.vol; if (m.shake === false) meta.shake = false;
     meta.runs = m.runs | 0; Object.assign(meta.mut, m.mut); Object.assign(meta.stat, m.stat); if (m.daily && m.daily.date) meta.daily = m.daily; if (Array.isArray(m.top)) meta.top = m.top.slice(0, 5); meta.coins = m.coins | 0; bestScore = m.bestScore | 0; if (SHIPS[m.ship] && meta.ships[m.ship]) meta.ship = m.ship; }
 } catch (e) {}
 function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Object.assign({ bestScore }, meta))); localStorage.setItem('neonstorm_best', String(Math.floor(best))); } catch (e) {} }
@@ -492,7 +483,7 @@ function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Ob
 /* ---------- состояние ---------- */
 let state = 'menu', P, bullets, ebullets, enemies, gems, parts, texts, T, kills, spawnT, bossT, bossN, shake, flash, flashCol, eid,
     combo, comboT, maxCombo, score, freeze, zones, eventT, meteorT, meteorS, xpBoost, bossKills, lastHit, achT,
-    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, hitstop = 0, stains = [], coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
+    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, hitstop = 0, coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
 const keys = {}, mouse = { x: 0, y: 0 }, pad = { on: false, mx: 0, my: 0, aiming: false, a: 0, prev: [] };
 function pollPad() {
   const gp = navigator.getGamepads ? Array.from(navigator.getGamepads()).find(x => x && x.connected) : null; if (!gp) return;
@@ -541,7 +532,7 @@ function reset() {
   P.maxHp += pk.hp * 10; P.hp = P.maxHp; P.dmg *= 1 + pk.dmg * .08; P.speed *= 1 + pk.spd * .04;
   P.magnet *= 1 + pk.mag * .15; P.rerolls += pk.rr;
   if (meta.mut.frail) P.hp = P.maxHp = Math.round(P.maxHp * .5);
-  coreDone = 0; won = false; curSec = 0; stains = [];
+  coreDone = 0; won = false; curSec = 0;
   bullets = []; ebullets = []; enemies = []; gems = []; parts = []; texts = [];
   T = 0; kills = 0; spawnT = 0; bossT = 60; bossN = 0; shake = 0; flash = 0; flashCol = '255,70,110'; eid = 0;
   combo = 0; comboT = 0; maxCombo = 0; score = 0; freeze = 0;
@@ -550,7 +541,7 @@ function reset() {
 reset();
 
 function show(id) { for (const o of document.querySelectorAll('.ov')) o.classList.toggle('on', o.id === id); }
-function start() { initAudio(); reset(); state = 'play'; show(null); }
+function start() { initAudio(); reset(); state = 'play'; show(null); if (meta.mode === 'rush') { bossT = 4; P.rushPicks = 6; levelUp(); } }
 function buildStr() { return UPS.filter(u => P.ups[u.id]).map(u => u.ic + ' x' + P.ups[u.id] + (P.evo[u.id] ? '★' : '')).concat(RELICS.filter(r => P.relics[r.id]).map(r => r.ic)).join(' &nbsp;&nbsp; '); }
 function victory() {
   won = true; state = 'win'; meta.coins += 100; meta.stat.w++; checkAch(); save(); S.lvl(); slowmo = 1.2;
@@ -585,6 +576,8 @@ function renderMenu() {
   }
   const ob = $('opts'); ob.innerHTML = '';
   const pill = (t, on, fn) => { const d = document.createElement('span'); d.className = 'pill btn' + (on ? ' on' : ''); d.textContent = t; d.onclick = fn; ob.appendChild(d); };
+  pill('Классика', meta.mode === 'classic', () => { meta.mode = 'classic'; save(); renderMenu(); });
+  pill('Босс-раш', meta.mode === 'rush', () => { meta.mode = 'rush'; save(); renderMenu(); });
   for (const k in DIFF) pill(DIFF[k].n + (DIFF[k].coin !== 1 ? ` · ◈×${DIFF[k].coin}` : ''), meta.diff === k, () => { meta.diff = k; save(); renderMenu(); });
   pill('Звук ' + Math.round(meta.vol * 100) + '%', false, () => { meta.vol = meta.vol > .9 ? .6 : meta.vol > .5 ? .3 : meta.vol > .2 ? 0 : 1; if (out) out.gain.value = meta.vol * GAIN; save(); renderMenu(); });
   pill('Тряска: ' + (meta.shake ? 'вкл' : 'выкл'), false, () => { meta.shake = !meta.shake; save(); renderMenu(); });
@@ -598,16 +591,17 @@ function renderMenu() {
   $('achT').textContent = `ДОСТИЖЕНИЯ ${got}/${ACH.length}`;
   $('coins').textContent = `◈ ${meta.coins} кредитов — за время, убийства и боссов${coinK() !== 1 ? ' · множитель ×' + (+coinK().toFixed(2)) : ''}`;
   $('menuBest').textContent = best ? `Рекорд по времени: ${fmt(best)}` : '';
-  $('top').innerHTML = (meta.runs ? `Всего: забегов ${meta.runs} · побед ${meta.stat.w} · убито ${meta.stat.k} · в бою ${fmt(meta.stat.t)}<br>` : '') + meta.top.map((r, i) => `${i + 1}. <b>${r.s}</b> · ${fmt(r.t)} · ${(SHIPS[r.ship] || {}).n || '?'} · ${(DIFF[r.diff] || {}).n || '?'}`).join('<br>');
+  $('top').innerHTML = (meta.runs ? `Всего: забегов ${meta.runs} · побед ${meta.stat.w} · убито ${meta.stat.k} · в бою ${fmt(meta.stat.t)}<br>` : '') + meta.top.map((r, i) => `${i + 1}. <b>${r.s}</b> · ${fmt(r.t)} · ${(SHIPS[r.ship] || {}).n || '?'} · ${(DIFF[r.diff] || {}).n || '?'}${r.mode === 'rush' ? ' · Босс-раш' : ''}`).join('<br>');
 }
 function gameOver() {
   state = 'over'; S.over(); checkAch(); $('overH').textContent = won ? 'ЗАБЕГ ЗАВЕРШЁН' : 'ТЕБЯ СМЕЛИ';
   const isBest = T > best, earned = Math.floor((T / 6 + kills / 60 + bossKills * 15) * coinK() * P.scoreK);
   if (isBest) best = T;
   bestScore = Math.max(bestScore, Math.floor(score)); meta.coins += earned; meta.runs++; meta.stat.k += kills; meta.stat.t += Math.floor(T);
-  meta.top.push({ s: Math.floor(score), t: Math.floor(T), ship: meta.ship, diff: meta.diff }); meta.top.sort((a, b) => b.s - a.s); meta.top.length = Math.min(5, meta.top.length); save();
+  meta.top.push({ s: Math.floor(score), t: Math.floor(T), ship: meta.ship, diff: meta.diff, mode: meta.mode }); meta.top.sort((a, b) => b.s - a.s); meta.top.length = Math.min(5, meta.top.length); save();
   $('stats').innerHTML = `Очки: <b>${Math.floor(score)}</b> &nbsp; Время: <b>${fmt(T)}</b><br>Убито: <b>${kills}</b> &nbsp; Уровень: <b>${P.lvl}</b> &nbsp; Макс. комбо: <b>${maxCombo}</b><br>` +
     `Заработано: <b>◈ ${earned}</b> (всего ${meta.coins})<br><span id="build2">${buildStr()}</span><br>` +
+    (!won && P.killer && KILLER[P.killer] ? `<span class="tip">Добил: <b>${KILLER[P.killer][0]}</b>. ${KILLER[P.killer][1]}</span><br>` : '') +
     (isBest ? '<span class="best">★ НОВЫЙ РЕКОРД ★</span>' : `Рекорд: <b>${fmt(best)}</b>`);
   setTimeout(() => { if (state === 'over') show('over'); }, 700);
 }
@@ -644,7 +638,7 @@ function choose(u) {
   P.inv = Math.max(P.inv, .8); state = 'play'; show(null);
   ring(P.x, P.y, P.col, 40);
   for (const e of enemies) { const d = Math.hypot(e.x - P.x, e.y - P.y); if (d < 200 && e.type !== 'boss') { e.kx = (e.x - P.x) / d * 500; e.ky = (e.y - P.y) / d * 500; } }
-  if (P.xp >= P.need) gainXp(0);
+  if (P.rushPicks && --P.rushPicks > 0) levelUp(true); else if (P.xp >= P.need) gainXp(0);
 }
 function gainXp(v) {
   P.xp += v * P.xpK * (xpBoost > 0 ? 2 : 1);
@@ -663,10 +657,10 @@ function burst(x, y, col, n, sp = 220, life = .5) {
 }
 function ring(x, y, col, r) { parts.push({ ring: 1, x, y, r: 4, R: r, l: .35, m: .35, col }); }
 function txt(x, y, s, col, big) { texts.push({ x: x + rnd(-8, 8), y, s, col, l: big === 2 ? 1.4 : .7, big }); if (texts.length > 80) texts.shift(); }
-function blast(x, y, R, dE, dP) {
+function blast(x, y, R, dE, dP, src) {
   ring(x, y, '#ff8a3d', R); burst(x, y, '#ff8a3d', 16, 300, .45); shake = Math.max(shake, 6);
   for (const o of enemies) if (!o.dead && (o.x - x) ** 2 + (o.y - y) ** 2 < (R + o.r) ** 2) hurt(o, dE, false);
-  if (dP && (P.x - x) ** 2 + (P.y - y) ** 2 < (R + P.r) ** 2) hitPlayer(dP);
+  if (dP && (P.x - x) ** 2 + (P.y - y) ** 2 < (R + P.r) ** 2) hitPlayer(dP, src);
 }
 function nearest(x, y, skip, maxD = 1e9) {
   let b = null, bd = maxD * maxD;
@@ -685,26 +679,28 @@ function zap(from, d) {
 
 /* ---------- враги ---------- */
 function spawn(type, x, y) {
-  const t = TYPES[type], sc = 1 + T / 75 + Math.pow(T / 170, 2.2);
+  const rush = meta.mode === 'rush', TT = rush ? bossN * 55 : T; // в босс-раше сила врагов растёт с номером босса, а не со временем
+  const t = TYPES[type], sc = 1 + TT / 75 + Math.pow(TT / 170, 2.2);
   if (x === undefined) { const a = rnd(0, TAU), d = Math.hypot(W, H) / 2 + 70; x = P.x + Math.cos(a) * d; y = P.y + Math.sin(a) * d; }
-  const hp = t.hp * (type === 'boss' ? (1 + bossN * .9) * (1 + (T / 200) ** 2) : sc) * DIFF[meta.diff].hp;
-  const e = { id: ++eid, type, x, y, r: t.r, hp, maxHp: hp, sp: t.sp * rnd(.9, 1.1) * Math.min(1.5, 1 + T / 500), dmg: t.dmg * (1 + T / 240 + (T / 400) ** 2), col: t.col, n: t.n, xp: t.xp,
+  const hp = t.hp * (type === 'boss' ? (1 + bossN * .9) * (rush ? 1.3 : 1 + (T / 200) ** 2) : sc) * DIFF[meta.diff].hp;
+  const e = { id: ++eid, type, x, y, r: t.r, hp, maxHp: hp, sp: t.sp * rnd(.9, 1.1) * Math.min(1.5, 1 + TT / 500), dmg: t.dmg * (1 + TT / 240 + (TT / 400) ** 2), col: t.col, n: t.n, xp: t.xp,
               fl: 0, rot: rnd(0, TAU), kx: 0, ky: 0, st: rnd(1, 2.5), oc: 0, slow: 0, slowK: 0, dir: Math.random() < .5 ? 1 : -1 };
   if (type === 'boss') { e.kind = Object.keys(BOSS)[bossN % 3]; e.col = BOSS[e.kind].col; e.n = BOSS[e.kind].s; e.ph = 0; e.mode = 0; e.ft = 0; e.sa = 0; e.cx = 1; e.cy = 0; }
   enemies.push(e); return e;
 }
 function ringShot(e, n, sp, col) {
   const o = rnd(0, TAU);
-  for (let k = 0; k < n; k++) { const a = o + k * TAU / n; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, l: 5, dmg: e.dmg * .55, col }); }
+  for (let k = 0; k < n; k++) { const a = o + k * TAU / n; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, l: 5, dmg: e.dmg * .55, col, src: e.kind }); }
   sfx(160, .25, 'square', .04, -90);
 }
 function bossAI(e, dt, dx, dy) {
+  if (meta.mode === 'rush') { e.age = (e.age || 0) + dt; dt *= 1 + Math.min(2.5, e.age / 16); } // чем дольше живёт босс, тем чаще атакует
   if (e.kind === 'core') {
     e.ph += dt;
     if ((e.ft -= dt) <= 0) {
       if ((e.ph / 5 | 0) % 2 === 0) {
         e.ft = .16; e.sa += .29;
-        for (let k = 0; k < 5; k++) { const a = e.sa + k * TAU / 5; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170, l: 5, dmg: e.dmg * .45, col: '#ffffff' }); }
+        for (let k = 0; k < 5; k++) { const a = e.sa + k * TAU / 5; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170, l: 5, dmg: e.dmg * .45, col: '#ffffff', src: 'core' }); }
       } else {
         e.ft = 1.25; ringShot(e, 20, 230, '#ffd0d0');
         if (enemies.length < 300) for (let i = 0; i < 3; i++) spawn('runner', e.x + rnd(-40, 40), e.y + rnd(-40, 40));
@@ -716,7 +712,7 @@ function bossAI(e, dt, dx, dy) {
     e.ph += dt;
     if (e.ph % 4 < 2.6 && (e.ft -= dt) <= 0) {
       e.ft = .13; e.sa += .33;
-      for (let k = 0; k < 3; k++) { const a = e.sa + k * TAU / 3; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 185, vy: Math.sin(a) * 185, l: 5, dmg: e.dmg * .47, col: '#ff7ae0' }); }
+      for (let k = 0; k < 3; k++) { const a = e.sa + k * TAU / 3; ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 185, vy: Math.sin(a) * 185, l: 5, dmg: e.dmg * .47, col: '#ff7ae0', src: 'spiral' }); }
     }
     return [dx, dy, e.sp * .8];
   }
@@ -748,7 +744,6 @@ function hurt(e, d, crit, kx = 0, ky = 0) {
 }
 function die(e) {
   e.dead = true; kills++; S.kill(); if (e.r > 15 && e.type !== 'boss') hitstop = Math.max(hitstop, .04);
-  { const pts = []; for (let i = 0; i < 9; i++) pts.push(rnd(.55, 1.25)); stains.push({ x: e.x, y: e.y, r: e.r * (e.type === 'boss' ? 2.2 : 1.5), col: e.col, l: 10, pts }); if (stains.length > 140) stains.shift(); }
   combo++; comboT = 2.6; maxCombo = Math.max(maxCombo, combo);
   score += (e.type === 'boss' ? 500 : (e.xp || 1) * 10) * mult() * P.scoreK;
   if (P.ultLock <= 0) P.ult = Math.min(1, P.ult + (e.type === 'boss' ? .5 : .022 * P.ultK));
@@ -757,7 +752,7 @@ function die(e) {
   ring(e.x, e.y, e.col, e.r * 3);
   shake = Math.max(shake, e.type === 'boss' ? 26 : e.r > 15 ? 7 : 3);
   if (e.type === 'splitter') for (let i = 0; i < 3; i++) { const m = spawn('mini', e.x + rnd(-10, 10), e.y + rnd(-10, 10)); const a = rnd(0, TAU); m.kx = Math.cos(a) * 300; m.ky = Math.sin(a) * 300; }
-  if (e.type === 'bomber') blast(e.x, e.y, 90, 60 + T * .4, e.armed ? e.dmg * 2.2 : 0);
+  if (e.type === 'bomber') blast(e.x, e.y, 90, 60 + T * .4, e.armed ? e.dmg * 2.2 : 0, 'bomber');
   if (e.type === 'boss') {
     S.boom(); flash = .5; flashCol = '255,220,160'; bossKills++; if (e.kind === 'core') victory();
     for (let i = 0; i < 28; i++) gems.push({ x: e.x + rnd(-70, 70), y: e.y + rnd(-70, 70), v: 3, t: 0 });
@@ -771,8 +766,9 @@ function die(e) {
   }
   if (gems.length > 450) { const i = gems.findIndex(m => m.v && !m.dead); if (i >= 0) { const o = gems.splice(i, 1)[0], n = gems.find(m => m.v); if (n) n.v += o.v; } }
 }
-function hitPlayer(d) {
+function hitPlayer(d, src) {
   if (P.inv > 0 || state !== 'play') return;
+  if (src) P.killer = src;
   d *= DIFF[meta.diff].dmg; P.hp -= d; P.inv = .7; shake = 14; flash = .25; flashCol = '255,70,110'; S.hurt();
   combo = 0; lastHit = T; hitstop = .07;
   burst(P.x, P.y, '#ff3d7f', 18, 300);
@@ -895,27 +891,32 @@ function update(dt) {
     for (let i = 0; i < 3; i++) { const e = enemies[Math.random() * enemies.length | 0]; if (e.dead) continue; parts.push({ bolt: 1, x: P.x, y: P.y, x2: e.x, y2: e.y, l: .25, m: .25, col: '#ffe066' }); hurt(e, P.dmg * 4, true); }
   }
 
-  // спавн
+  // спавн: в босс-раше обычные враги идут редкой струйкой, только ради опыта
+  const rush = meta.mode === 'rush';
   spawnT -= dt;
   if (spawnT <= 0 && enemies.length < 320) {
-    spawnT = Math.max(.1, .6 - T * .004);
-    const n = (1 + (T / 50 | 0) * (Math.random() < .5 ? 1 : 0)) * (meta.mut.swarm ? 2 : 1);
+    spawnT = rush ? Math.max(.3, 1 - bossN * .11) : Math.max(.1, .6 - T * .004);
+    const n = rush ? 1 : (1 + (T / 50 | 0) * (Math.random() < .5 ? 1 : 0)) * (meta.mut.swarm ? 2 : 1);
     for (let i = 0; i < n; i++) {
-      const e = spawn(pickType());
-      if (T > 30 && e.type !== 'bomber' && Math.random() < Math.min(.07, .02 + T / 5000)) { e.elite = 1; e.hp = e.maxHp = e.hp * 4; e.r *= 1.35; e.xp *= 4; }
+      const rr = Math.random(), e = spawn(rush ? (bossN >= 4 && rr < .12 ? 'bomber' : bossN >= 3 && rr < .3 ? 'shooter' : rr < .55 ? 'runner' : 'grunt') : pickType());
+      if (!rush && T > 30 && e.type !== 'bomber' && Math.random() < Math.min(.07, .02 + T / 5000)) { e.elite = 1; e.hp = e.maxHp = e.hp * 4; e.r *= 1.35; e.xp *= 4; }
     }
   }
-  bossT -= dt;
+  if (rush && Math.hypot(P.x, P.y) > ARENA) { // за стеной шторма корабль разрушается
+    P.hp -= (14 + bossN * 5) * DIFF[meta.diff].dmg * dt; P.killer = 'storm'; if ((T * 10 | 0) % 3 === 0) burst(P.x, P.y, '#ff3d7f', 1, 160, .3);
+    if (P.hp <= 0) { P.inv = 0; hitPlayer(1, 'storm'); }
+  }
+  if (!rush || !enemies.some(e => e.type === 'boss')) bossT -= dt;
   if (bossT <= 0) {
-    bossT = 60; const e = spawn('boss'); bossN++; S.boss(); flash = .3; flashCol = '255,70,110';
-    if (!coreDone && T >= CORE_T - 1) { coreDone = 1; e.kind = 'core'; e.col = BOSS.core.col; e.n = BOSS.core.s; e.r = 60; e.hp = e.maxHp = e.hp * 2; announce('ЯДРО ШТОРМА', '#fff'); }
+    bossT = rush ? 5 : 60; const e = spawn('boss'); bossN++; S.boss(); flash = .3; flashCol = '255,70,110';
+    if (!coreDone && (rush ? bossN >= 7 : T >= CORE_T - 1)) { coreDone = 1; e.kind = 'core'; e.col = BOSS.core.col; e.n = BOSS.core.s; e.r = 60; e.hp = e.maxHp = e.hp * 2; announce('ЯДРО ШТОРМА', '#fff'); }
     else txt(P.x, P.y - 70, 'БОСС!', '#ff2d2d', 2);
   }
-  const sec = Math.min(SECT.length - 1, T / 120 | 0);
+  const sec = rush ? clamp((bossN - 1) / 2 | 0, 0, SECT.length - 1) : Math.min(SECT.length - 1, T / 120 | 0);
   if (sec !== curSec) { curSec = sec; announce(`СЕКТОР ${sec + 1} · ${SECT[sec].n}`, '#fff'); }
 
   // события
-  if (T > 40 && (eventT -= dt) <= 0) {
+  if (!rush && T > 40 && (eventT -= dt) <= 0) {
     eventT = rnd(26, 38); const k = Math.random();
     if (k < .4) {
       const n = Math.min(60, 22 + T / 8 | 0), d = Math.hypot(W, H) / 2 + 60, o = rnd(0, TAU);
@@ -929,7 +930,7 @@ function update(dt) {
     if ((meteorS -= dt) <= 0) { meteorS = .22; const a = rnd(0, TAU), r = rnd(0, 340); zones.push({ x: P.x + P.vx * .6 + Math.cos(a) * r, y: P.y + P.vy * .6 + Math.sin(a) * r, r: rnd(55, 85), t: 1.1 }); }
   }
   xpBoost = Math.max(0, xpBoost - dt);
-  for (const z of zones) if ((z.t -= dt) <= 0) { z.dead = 1; blast(z.x, z.y, z.r, 90 + T * .5, 20 + T * .05); S.boom(); }
+  for (const z of zones) if ((z.t -= dt) <= 0) { z.dead = 1; blast(z.x, z.y, z.r, 90 + T * .5, 20 + T * .05, 'meteor'); S.boom(); }
   zones = zones.filter(z => !z.dead);
   if ((achT -= dt) <= 0) { achT = 1; checkAch(); }
 
@@ -950,7 +951,7 @@ function update(dt) {
         if (d < 230) { mx = -dx; my = -dy; } else if (d < 330) { mx = -dy * e.dir; my = dx * e.dir; }
         e.st -= dt;
         if (e.st <= 0 && d < 520) { e.st = 2.1; ebullets.push({ x: e.x, y: e.y, vx: dx * 270, vy: dy * 270, l: 4, dmg: e.dmg, col: '#3dffb0' }); }
-      } else if (e.type === 'boss') { const m = bossAI(e, dt, dx, dy); mx = m[0]; my = m[1]; spd = m[2];
+      } else if (e.type === 'boss') { const m = bossAI(e, dt, dx, dy); mx = m[0]; my = m[1]; spd = m[2] * (rush ? 1 + Math.min(.8, (e.age || 0) / 40) : 1);
       } else if (e.type === 'bomber') {
         if (e.fuse === undefined) { if (d < 78) e.fuse = .55; }
         else { e.fuse -= dt; e.fl = .05; mx = my = 0; if (e.fuse <= 0) { e.armed = 1; die(e); continue; } }
@@ -962,7 +963,7 @@ function update(dt) {
           if (e.lm === 1) { if (e.lt > .35) { e.lx = dx; e.ly = dy; } if (e.lt <= 0) { e.lm = 2; e.lt = .22; sfx(1200, .2, 'sawtooth', .05, -900); } }
           else {
             const px = P.x - e.x, py = P.y - e.y, along = px * e.lx + py * e.ly, perp = Math.abs(px * e.ly - py * e.lx);
-            if (along > 0 && along < 720 && perp < 13 && P.dashT <= 0) hitPlayer(e.dmg);
+            if (along > 0 && along < 720 && perp < 13 && P.dashT <= 0) hitPlayer(e.dmg, 'laser');
             if (e.lt <= 0) { e.lm = 0; e.st = 3; }
           }
         }
@@ -990,7 +991,7 @@ function update(dt) {
     if (!e.dead && d < e.r + P.r - 2) {
       if (P.dashT > 0) hurt(e, P.dmg * P.dashDmg, true, -dx * 400, -dy * 400);
       else if (P.phase > 0) { if (e.oc <= 0) { e.oc = .3; hurt(e, P.dmg * 3, true, -dx * 300, -dy * 300); } }
-      else if (!fz && e.type !== 'bomber') hitPlayer(e.dmg);
+      else if (!fz && e.type !== 'bomber') hitPlayer(e.dmg, e.type === 'boss' ? e.kind : e.type);
     }
   }
 
@@ -1028,7 +1029,7 @@ function update(dt) {
   }
   if (!fz) for (const b of ebullets) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.l -= dt;
-    if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < (P.r + 5) ** 2 && P.dashT <= 0) { if (P.inv <= 0) { hitPlayer(b.dmg); b.l = 0; } }
+    if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < (P.r + 5) ** 2 && P.dashT <= 0) { if (P.inv <= 0) { hitPlayer(b.dmg, b.src || 'shooter'); b.l = 0; } }
   }
 
   // кристаллы и бонусы
@@ -1052,7 +1053,6 @@ function updateFx(dt) {
   parts = parts.filter(p => p.l > 0);
   for (const t of texts) { t.l -= dt; t.y -= 42 * dt; }
   texts = texts.filter(t => t.l > 0);
-  for (const s of stains) s.l -= dt; if (stains.length && stains[0].l <= 0) stains = stains.filter(s => s.l > 0);
   shake *= Math.exp(-dt * 9); flash = Math.max(0, flash - dt); toastT = Math.max(0, toastT - dt);
 }
 
@@ -1076,6 +1076,7 @@ function draw() {
   }
   if (fz) { g.globalAlpha = .13; g.fillStyle = '#2ce8f5'; g.fillRect(0, 0, BW, BH); g.globalAlpha = 1; }
 
+  if (meta.mode === 'rush' && state !== 'menu') { const ar = ARENA / PX, o = T * 14 | 0; pxRing(X(0), Y(0), ar, '#e43b44', 4, o); pxRing(X(0), Y(0), ar + 2, '#a22633', 4, -o); }
   // метеоритные зоны
   for (const z of zones) { const r = z.r / PX, k = 1 - z.t / 1.1; pxRing(X(z.x), Y(z.y), r, '#e43b44', 3, T * 20 | 0); pxRing(X(z.x), Y(z.y), r * k, '#f77622'); if (k > .7) pxRing(X(z.x), Y(z.y), r * k - 1, '#fee761'); }
   // кристаллы и аптечки
@@ -1168,7 +1169,8 @@ function draw() {
   g.textAlign = 'center'; label(fmt(T), W / 2, 24 + F2, TXT, F2);
   let cy = 24 + F2 + F1 + 10;
   if (combo >= 3) { const m = mult(), cc = m >= 3 ? '#e43b44' : m > 1 ? ACC : '#c0cbdc'; label(`КОМБО ${combo}` + (m > 1 ? ` x${m}` : ''), W / 2, cy, cc, F1); g.fillStyle = cc; g.fillRect(W / 2 - 48, cy + 6, Math.round(96 * clamp(comboT / 2.6, 0, 1) / 3) * 3, 3); cy += F1 + 18; }
-  if (!coreDone && T > CORE_T - 90) label('ЯДРО ЧЕРЕЗ ' + fmt(Math.max(0, CORE_T - T)), W / 2, cy, '#f6757a', 8);
+  if (meta.mode === 'rush') { if (!won) label(`БОСС ${Math.max(1, bossN)} ИЗ 7`, W / 2, cy, '#f6757a', 8); if (Math.hypot(P.x, P.y) > ARENA && (T * 5 | 0) % 2) label('ВЕРНИСЬ В КРУГ!', W / 2, H / 2 - 60, '#e43b44', narrow ? 8 : 16); }
+  else if (!coreDone && T > CORE_T - 90) label('ЯДРО ЧЕРЕЗ ' + fmt(Math.max(0, CORE_T - T)), W / 2, cy, '#f6757a', 8);
   g.textAlign = 'right'; label(String(Math.floor(score)), W - 16, 24 + F2, TXT, F2); label('УБИТО ' + kills, W - 16, 24 + F2 + F1 + 10, '#c0cbdc', F1);
   const boss = enemies.find(e => e.type === 'boss');
   if (boss) {
