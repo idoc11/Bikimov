@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Handjet:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#181425;--panel:#262b44;--panel2:#3a4466;--line:#5a6988;--text:#ffffff;--mut:#c0cbdc;--dim:#8b9bb4;--acc:#feae34;--acc2:#f77622;--red:#e43b44;--grn:#63c74d;
-  --head:"Press Start 2P",monospace;--body:"Handjet","PT Sans","Segoe UI",sans-serif;--cut:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)}
+  --head:"Press Start 2P","Handjet",monospace;--body:"Handjet","PT Sans","Segoe UI",sans-serif;--cut:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--body);font-weight:500;font-size:18px;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
@@ -66,7 +66,7 @@ button.ghost:active{padding:13px 20px 11px;box-shadow:none}
 #top{font:500 18px/1.4 var(--body);color:var(--dim)}
 #top b{color:#fff}
 .ico{width:24px;height:24px;vertical-align:-6px}
-.codex{width:236px;cursor:default}.codex:hover{box-shadow:inset 0 0 0 4px var(--line),inset 0 8px 0 var(--panel2);background:var(--panel)}.codex .ic{height:auto;min-height:62px;padding-top:6px}
+#codex{justify-content:flex-start}.codex{width:236px;cursor:default}.codex:hover{box-shadow:inset 0 0 0 4px var(--line),inset 0 8px 0 var(--panel2);background:var(--panel)}.codex .ic{height:auto;min-height:62px;padding-top:6px}
 @media(max-width:700px){.card{width:46%;padding:16px 10px 10px}.card .ic .ico{width:36px;height:36px}.card .nm{font-size:9px}.card .ds{font-size:14px}.chip{width:46%}p{font-size:15px}p.keys{display:none}h1,.sub{order:-3}#touchHint{order:-2}#play{order:-1}}
 @media(max-height:500px){.ov{gap:7px;padding:10px}h2{font-size:18px}.card{padding:14px 10px 8px;width:196px}.card .ic .ico{width:30px;height:30px}.card .nm{font-size:9px;margin:6px 0 4px}.card .ds{min-height:0;font-size:14px}.card .lv{margin-top:6px;padding-top:5px}h1{font-size:36px}button{font-size:14px;padding:10px 26px 14px}}
 </style>
@@ -151,7 +151,8 @@ addEventListener('resize', resize); resize();
 
 /* ---------- звук ---------- */
 let ac = null, out = null, muted = false, lastShot = 0;
-function initAudio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = meta.vol; out.connect(ac.destination); } catch (e) {} } if (ac && ac.state === 'suspended') ac.resume(); }
+const GAIN = 3; // общий подъём громкости; перегруз ловит ограничитель в initAudio
+function initAudio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = meta.vol * GAIN; const lim = ac.createDynamicsCompressor(); lim.threshold.value = -8; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .12; out.connect(lim); lim.connect(ac.destination); } catch (e) {} } if (ac && ac.state === 'suspended') ac.resume(); }
 function sfx(f, d, type = 'square', v = .05, slide = 0) {
   if (!ac || muted) return;
   const t = ac.currentTime, o = ac.createOscillator(), ga = ac.createGain();
@@ -161,17 +162,17 @@ function sfx(f, d, type = 'square', v = .05, slide = 0) {
   o.connect(ga).connect(out); o.start(t); o.stop(t + d + .02);
 }
 const S = {
-  shot() { const n = performance.now(); if (n - lastShot > 70) { lastShot = n; sfx(rnd(620, 700), .07, 'square', .018, -350); } },
-  hit() { sfx(rnd(180, 240), .05, 'triangle', .04, -80); },
-  kill() { sfx(rnd(300, 420), .14, 'sawtooth', .035, -260); },
-  gem() { sfx(rnd(900, 1300), .06, 'sine', .03, 400); },
+  shot() { const n = performance.now(); if (n - lastShot > 70) { lastShot = n; sfx(rnd(620, 700), .07, 'square', .03, -350); } },
+  hit() { sfx(rnd(180, 240), .05, 'triangle', .055, -80); },
+  kill() { sfx(rnd(300, 420), .14, 'sawtooth', .05, -260); },
+  gem() { sfx(rnd(900, 1300), .06, 'sine', .04, 400); },
   hurt() { sfx(140, .3, 'sawtooth', .09, -100); },
   dash() { sfx(300, .18, 'sine', .07, 700); },
   lvl() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => sfx(f, .18, 'triangle', .06), i * 70)); },
   pw() { [660, 880, 1320].forEach((f, i) => setTimeout(() => sfx(f, .12, 'square', .04), i * 50)); },
   boss() { sfx(70, .9, 'sawtooth', .1, -30); },
   boom() { sfx(90, .5, 'sawtooth', .1, -55); },
-  zap() { sfx(rnd(1400, 1900), .06, 'sawtooth', .015, -1000); },
+  zap() { sfx(rnd(1400, 1900), .06, 'sawtooth', .03, -1000); },
   over() { [392, 330, 262, 196].forEach((f, i) => setTimeout(() => sfx(f, .3, 'triangle', .07), i * 160)); }
 };
 
@@ -245,7 +246,7 @@ const DRAW = {
   drone(x, a) { ngon(x, 4, 7, a); },
   turret(x, a) { ngon(x, 6, 14, '#5a6988'); ngon(x, 4, 7, a); }
 };
-const PF = '"Press Start 2P",monospace', BF = '500 1px "Handjet","PT Sans",sans-serif'.slice(8);
+const PF = '"Press Start 2P","Handjet",monospace', BF = '500 1px "Handjet","PT Sans",sans-serif'.slice(8);
 // палитра из 32 цветов: все спрайты приводятся к ней, отсюда цельный вид
 const PAL = 'be4a2f d77643 ead4aa e4a672 b86f50 733e39 3e2731 a22633 e43b44 f77622 feae34 fee761 63c74d 3e8948 265c42 193c3e 124e89 0099db 2ce8f5 ffffff c0cbdc 8b9bb4 5a6988 3a4466 262b44 181425 ff0044 68386c b55088 f6757a e8b796 c28569'
   .split(' ').map(h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]);
@@ -491,7 +492,7 @@ function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Ob
 /* ---------- состояние ---------- */
 let state = 'menu', P, bullets, ebullets, enemies, gems, parts, texts, T, kills, spawnT, bossT, bossN, shake, flash, flashCol, eid,
     combo, comboT, maxCombo, score, freeze, zones, eventT, meteorT, meteorS, xpBoost, bossKills, lastHit, achT,
-    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, stains = [], coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
+    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, hitstop = 0, stains = [], coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
 const keys = {}, mouse = { x: 0, y: 0 }, pad = { on: false, mx: 0, my: 0, aiming: false, a: 0, prev: [] };
 function pollPad() {
   const gp = navigator.getGamepads ? Array.from(navigator.getGamepads()).find(x => x && x.connected) : null; if (!gp) return;
@@ -585,7 +586,7 @@ function renderMenu() {
   const ob = $('opts'); ob.innerHTML = '';
   const pill = (t, on, fn) => { const d = document.createElement('span'); d.className = 'pill btn' + (on ? ' on' : ''); d.textContent = t; d.onclick = fn; ob.appendChild(d); };
   for (const k in DIFF) pill(DIFF[k].n + (DIFF[k].coin !== 1 ? ` · ◈×${DIFF[k].coin}` : ''), meta.diff === k, () => { meta.diff = k; save(); renderMenu(); });
-  pill('Звук ' + Math.round(meta.vol * 100) + '%', false, () => { meta.vol = meta.vol > .9 ? .6 : meta.vol > .5 ? .3 : meta.vol > .2 ? 0 : 1; if (out) out.gain.value = meta.vol; save(); renderMenu(); });
+  pill('Звук ' + Math.round(meta.vol * 100) + '%', false, () => { meta.vol = meta.vol > .9 ? .6 : meta.vol > .5 ? .3 : meta.vol > .2 ? 0 : 1; if (out) out.gain.value = meta.vol * GAIN; save(); renderMenu(); });
   pill('Тряска: ' + (meta.shake ? 'вкл' : 'выкл'), false, () => { meta.shake = !meta.shake; save(); renderMenu(); });
   pill('Во весь экран', false, () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} });
   const mb = $('muts'); mb.innerHTML = '';
@@ -746,7 +747,7 @@ function hurt(e, d, crit, kx = 0, ky = 0) {
   if (e.hp <= 0) die(e); else S.hit();
 }
 function die(e) {
-  e.dead = true; kills++; S.kill();
+  e.dead = true; kills++; S.kill(); if (e.r > 15 && e.type !== 'boss') hitstop = Math.max(hitstop, .04);
   { const pts = []; for (let i = 0; i < 9; i++) pts.push(rnd(.55, 1.25)); stains.push({ x: e.x, y: e.y, r: e.r * (e.type === 'boss' ? 2.2 : 1.5), col: e.col, l: 10, pts }); if (stains.length > 140) stains.shift(); }
   combo++; comboT = 2.6; maxCombo = Math.max(maxCombo, combo);
   score += (e.type === 'boss' ? 500 : (e.xp || 1) * 10) * mult() * P.scoreK;
@@ -773,7 +774,7 @@ function die(e) {
 function hitPlayer(d) {
   if (P.inv > 0 || state !== 'play') return;
   d *= DIFF[meta.diff].dmg; P.hp -= d; P.inv = .7; shake = 14; flash = .25; flashCol = '255,70,110'; S.hurt();
-  combo = 0; lastHit = T;
+  combo = 0; lastHit = T; hitstop = .07;
   burst(P.x, P.y, '#ff3d7f', 18, 300);
   txt(P.x, P.y - 24, '-' + Math.round(d), '#ff3d7f', 1);
   if (P.relics.thorns) blast(P.x, P.y, 170, P.dmg * 6, 0);
@@ -837,7 +838,7 @@ function update(dt) {
   const im = Math.hypot(ix, iy); if (im > 1) { ix /= im; iy /= im; }
   if (P.dashT > 0) {
     P.dashT -= dt; P.vx = P.dx * 980; P.vy = P.dy * 980;
-    parts.push({ fx: 1, x: P.x, y: P.y, vx: 0, vy: 0, l: .25, m: .25, r0: 9 });
+    if ((P.dashT * 60 | 0) % 2 === 0) parts.push({ gh: 1, x: P.x, y: P.y, vx: 0, vy: 0, l: .28, m: .28, rot: P.aim });
   } else {
     const k = 1 - Math.exp(-dt * 14);
     const sp = P.speed * (P.phase > 0 ? 1.6 : 1); P.vx += (ix * sp - P.vx) * k; P.vy += (iy * sp - P.vy) * k;
@@ -1136,6 +1137,7 @@ function draw() {
   // взрывы, искры, волны, лучи
   for (const p of parts) {
     if (p.sm) continue; const a = p.l / p.m, x = X(p.x), y = Y(p.y);
+    if (p.gh) { const ss = spr('ship_' + meta.ship, P.col, RQ(p.rot, 32)); g.globalAlpha = a * .7; put(ss, p.x, p.y, 1, variant(ss, 'fz', 'rgba(44,232,245,.6)')); g.globalAlpha = 1; continue; }
     if (p.fx) { const r = Math.max(1, Math.round(p.r0 / PX * (.45 + (1 - a) * .9))); dot(x, y, r, a > .72 ? '#ffffff' : a > .5 ? '#fee761' : a > .3 ? '#f77622' : a > .14 ? '#e43b44' : '#733e39'); }
     else if (p.ring) { if (a > .12) { const c = pal(p.col); pxRing(x, y, p.r / PX, c); if (a > .5) pxRing(x, y, p.r / PX - 1, c); } }
     else if (p.beam) { const w = Math.max(1, Math.round(9 * a)); pxLine(x, y, X(p.x2), Y(p.y2), pal(p.col), w + 2); pxLine(x, y, X(p.x2), Y(p.y2), '#ffffff', Math.max(1, w - 2)); }
@@ -1212,8 +1214,9 @@ let last = performance.now();
 function frame(now) {
   let dt = Math.min(.033, (now - last) / 1000); last = now;
   if (slowmo > 0) { slowmo -= dt; dt *= .3; }
+  if (hitstop > 0) { hitstop -= dt; dt = 0; }
   pollPad();
-  if (state === 'play') update(dt);
+  if (state === 'play' && dt > 0) update(dt);
   if (state === 'menu') { P.x += 40 * dt; P.y += 22 * dt; }
   if (state !== 'pause' && state !== 'lvl') updateFx(dt);
   draw();
