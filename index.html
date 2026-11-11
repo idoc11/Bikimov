@@ -31,7 +31,7 @@ button.ghost:hover{box-shadow:6px 6px 0 var(--ink)}
 .card:hover,.chip:hover{transform:translate(-2px,-3px);box-shadow:7px 8px 0 var(--red)}
 .card .ic{color:var(--red);line-height:0}
 .card .ic .ico{width:52px;height:52px;stroke-width:1.8}
-.card .nm{font:700 21px/1.05 var(--head);text-transform:uppercase;margin:10px 0 6px}
+.card .nm{font:700 21px/1.05 var(--head);text-transform:uppercase;margin:10px 0 6px;overflow-wrap:anywhere}
 .card .ds{font-size:13px;color:var(--mut);min-height:38px;line-height:1.35}
 .card .ds b{color:var(--red)}
 .card .lv{margin-top:10px;padding-top:7px;border-top:2px solid var(--ink);font:700 12px ui-monospace,Menlo,Consolas,monospace;text-transform:uppercase}
@@ -62,7 +62,9 @@ button.ghost:hover{box-shadow:6px 6px 0 var(--ink)}
 #top{font:700 12.5px/1.7 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
 #top b{color:var(--ink)}
 .ico{width:1.2em;height:1.2em;vertical-align:-.22em;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
-@media(max-width:700px){.card{width:46%;padding:12px 9px}.card .ic .ico{width:36px;height:36px}.card .nm{font-size:16px}.chip{width:46%}p.keys{display:none}h1,.sub{order:-3}.sub{letter-spacing:.12em;font-size:10.5px;white-space:nowrap;padding:4px 10px}#touchHint{order:-2}#play{order:-1}}
+@media(max-width:700px){.card{width:46%;padding:12px 9px}.card .ic .ico{width:36px;height:36px}.card .nm{font-size:15px}.chip{width:46%}p.keys{display:none}h1,.sub{order:-3}.sub{letter-spacing:.12em;font-size:10.5px;white-space:nowrap;padding:4px 10px}#touchHint{order:-2}#play{order:-1}}
+@media(max-height:500px){.ov{gap:7px;padding:10px}h2{font-size:30px}.card{padding:10px 10px 8px;width:190px}.card .ic .ico{width:30px;height:30px}.card .nm{font-size:16px;margin:5px 0 3px}.card .ds{min-height:0;font-size:12px}.card .lv{margin-top:6px;padding-top:4px}h1{font-size:64px}button{font-size:19px;padding:6px 34px 7px}}
+.codex{width:230px;cursor:default}.codex:hover{transform:none;box-shadow:5px 5px 0 var(--ink)}.codex .ic svg{width:40px;height:40px}
 </style>
 </head>
 <body>
@@ -83,10 +85,17 @@ button.ghost:hover{box-shadow:6px 6px 0 var(--ink)}
   <p id="coins"></p>
   <p class="best" id="menuBest"></p>
   <div id="top"></div>
+  <button class="ghost" id="codexBtn">Справочник врагов</button>
   <h3>ЗАДАНИЯ ДНЯ</h3>
   <div class="row" id="daily"></div>
   <h3 id="achT">ДОСТИЖЕНИЯ</h3>
   <div class="row" id="ach"></div>
+</div>
+
+<div class="ov" id="codex">
+  <h2>Враги</h2>
+  <div class="row" id="codexList" style="max-width:1000px"></div>
+  <button class="ghost" id="codexBack">Назад</button>
 </div>
 
 <div class="ov" id="lvl">
@@ -310,6 +319,19 @@ const MUT = [
   { id: 'nodash', n: 'Без рывка', d: 'Рывок отключён',                 k: .3 },
   { id: 'dark',   n: 'Туман',     d: 'Видно только рядом с кораблём',  k: .3 }
 ];
+const CODEX = [
+  ['grunt', 'Клин', 'Идёт напролом. Опасен только толпой.'],
+  ['runner', 'Жало', 'Быстрый и хрупкий. С 0:18.'],
+  ['bomber', 'Запал', 'Взрывается рядом с тобой. Убей заранее — взрыв заденет его соседей. С 0:35.'],
+  ['tank', 'Глыба', 'Медленный и очень живучий. С 0:45.'],
+  ['shooter', 'Стрелок', 'Держит дистанцию, кружит и стреляет. С 1:10.'],
+  ['splitter', 'Улей', 'После смерти распадается на троих мелких. С 1:40.'],
+  ['laser', 'Луч', 'Наводит пунктир и бьёт лучом. Уйди с линии или сделай рывок. С 2:30.'],
+  ['ring', 'Страж · босс', 'Кольца пуль во все стороны. Ищи просвет между пулями.'],
+  ['spiral', 'Спираль · босс', 'Закрученные очереди с паузами. Атакуй в паузу.'],
+  ['charger', 'Таран · босс', 'Замирает, показывает полосу и несётся по ней. Уходи вбок.'],
+  ['core', 'Ядро шторма', 'Финал на 8:00: спирали, кольца и призыв. Победа завершает забег.']
+];
 const coinK = () => DIFF[meta.diff].coin * (1 + MUT.reduce((a, m) => a + (meta.mut[m.id] ? m.k : 0), 0));
 const SHAPES = {
   assault:  [17, 0, -11, 11, -5, 0, -11, -11],
@@ -364,7 +386,7 @@ function save() { try { localStorage.setItem('neonstorm_meta', JSON.stringify(Ob
 /* ---------- состояние ---------- */
 let state = 'menu', P, bullets, ebullets, enemies, gems, parts, texts, T, kills, spawnT, bossT, bossN, shake, flash, flashCol, eid,
     combo, comboT, maxCombo, score, freeze, zones, eventT, meteorT, meteorS, xpBoost, bossKills, lastHit, achT,
-    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
+    toastS = '', toastCol = '#fff', toastT = 0, slowmo = 0, stains = [], coreDone = 0, won = false, curSec = 0, cam = { x: 0, y: 0 };
 const keys = {}, mouse = { x: 0, y: 0 }, pad = { on: false, mx: 0, my: 0, aiming: false, a: 0, prev: [] };
 function pollPad() {
   const gp = navigator.getGamepads ? Array.from(navigator.getGamepads()).find(x => x && x.connected) : null; if (!gp) return;
@@ -413,7 +435,7 @@ function reset() {
   P.maxHp += pk.hp * 10; P.hp = P.maxHp; P.dmg *= 1 + pk.dmg * .08; P.speed *= 1 + pk.spd * .04;
   P.magnet *= 1 + pk.mag * .15; P.rerolls += pk.rr;
   if (meta.mut.frail) P.hp = P.maxHp = Math.round(P.maxHp * .5);
-  coreDone = 0; won = false; curSec = 0;
+  coreDone = 0; won = false; curSec = 0; stains = [];
   bullets = []; ebullets = []; enemies = []; gems = []; parts = []; texts = [];
   T = 0; kills = 0; spawnT = 0; bossT = 60; bossN = 0; shake = 0; flash = 0; flashCol = '255,70,110'; eid = 0;
   combo = 0; comboT = 0; maxCombo = 0; score = 0; freeze = 0;
@@ -616,6 +638,7 @@ function hurt(e, d, crit, kx = 0, ky = 0) {
 }
 function die(e) {
   e.dead = true; kills++; S.kill();
+  { const pts = []; for (let i = 0; i < 9; i++) pts.push(rnd(.55, 1.25)); stains.push({ x: e.x, y: e.y, r: e.r * (e.type === 'boss' ? 2.2 : 1.5), col: e.col, l: 10, pts }); if (stains.length > 140) stains.shift(); }
   combo++; comboT = 2.6; maxCombo = Math.max(maxCombo, combo);
   score += (e.type === 'boss' ? 500 : (e.xp || 1) * 10) * mult() * P.scoreK;
   if (P.ultLock <= 0) P.ult = Math.min(1, P.ult + (e.type === 'boss' ? .5 : .022 * P.ultK));
@@ -919,6 +942,7 @@ function updateFx(dt) {
   parts = parts.filter(p => p.l > 0);
   for (const t of texts) { t.l -= dt; t.y -= 42 * dt; }
   texts = texts.filter(t => t.l > 0);
+  for (const s of stains) s.l -= dt; if (stains.length && stains[0].l <= 0) stains = stains.filter(s => s.l > 0);
   shake *= Math.exp(-dt * 9); flash = Math.max(0, flash - dt); toastT = Math.max(0, toastT - dt);
 }
 
@@ -948,6 +972,13 @@ function draw() {
 
   g.save(); g.translate(sx, sy);
 
+  // чернильные пятна от убитых
+  for (const s of stains) {
+    g.globalAlpha = Math.min(1, s.l / 4) * .28; g.fillStyle = s.col === '#2b2622' ? INK : s.col; g.beginPath();
+    for (let i = 0; i < 9; i++) { const a = i * TAU / 9, r = s.r * s.pts[i]; i ? g.lineTo(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r) : g.moveTo(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r); }
+    g.fill();
+  }
+  g.globalAlpha = 1;
   // метеоритные зоны
   for (const z of zones) {
     g.fillStyle = 'rgba(212,48,31,.2)'; g.beginPath(); g.arc(z.x, z.y, z.r * (1 - z.t / 1.1), 0, TAU); g.fill();
@@ -1047,26 +1078,26 @@ function draw() {
   // HUD: наборная полоса сверху
   const hi = meta.mut.dark ? '#e8dec6' : INK, lo = meta.mut.dark ? '#1b1814' : PAPER;
   g.fillStyle = hi; g.fillRect(0, 0, W, 9); g.fillStyle = RED; g.fillRect(0, 0, W * clamp(P.xp / P.need, 0, 1), 9);
-  const bw = Math.min(250, W * .42), low = P.hp / P.maxHp < .3;
+  const narrow = W < 620, bw = narrow ? W * .31 : 250, low = P.hp / P.maxHp < .3;
   g.fillStyle = hi; g.fillRect(20, 28, bw, 20);
   g.fillStyle = lo; g.fillRect(16, 24, bw, 20); g.fillStyle = low ? RED : hi; g.fillRect(16, 24, bw * P.hp / P.maxHp, 20);
   g.strokeStyle = hi; g.lineWidth = 2.5; g.strokeRect(16, 24, bw, 20);
   g.font = `700 13px ${FONT}`; g.textAlign = 'left'; g.fillStyle = P.hp / P.maxHp > .22 ? lo : hi; g.fillText(Math.ceil(P.hp) + ' / ' + P.maxHp, 23, 39);
-  g.fillStyle = hi; g.font = `700 17px ${FONT}`; g.fillText('УРОВЕНЬ ' + P.lvl, 16, 68);
+  g.fillStyle = hi; g.font = `700 ${narrow ? 14 : 17}px ${FONT}`; g.fillText('УРОВЕНЬ ' + P.lvl, 16, 68);
   let ey = 90; g.font = `700 14px ${FONT}`;
   if (P.rage > 0) { g.fillStyle = ORG; g.fillText('ЯРОСТЬ ' + P.rage.toFixed(1), 16, ey); ey += 19; }
   if (fz) { g.fillStyle = BLU; g.fillText('ЗАМОРОЗКА ' + freeze.toFixed(1), 16, ey); ey += 19; }
   if (xpBoost > 0) { g.fillStyle = BLU; g.fillText('ОПЫТ ×2  ' + xpBoost.toFixed(1), 16, ey); }
-  g.textAlign = 'center'; g.font = `700 40px ${FONT}`; g.fillStyle = hi; g.fillText(fmt(T), W / 2, 56);
+  g.textAlign = 'center'; g.font = `700 ${narrow ? 28 : 40}px ${FONT}`; g.fillStyle = hi; g.fillText(fmt(T), W / 2, narrow ? 48 : 56);
   if (!coreDone && T > CORE_T - 90) { g.font = `700 13px ${FONT}`; g.fillStyle = RED; g.fillText('ЯДРО ШТОРМА ЧЕРЕЗ ' + fmt(Math.max(0, CORE_T - T)), W / 2, combo >= 3 ? 108 : 78); }
   if (combo >= 3) {
     const m = mult();
-    g.font = `700 17px ${FONT}`; g.fillStyle = m >= 3 ? RED : hi;
+    g.font = `700 ${narrow ? 13 : 17}px ${FONT}`; g.fillStyle = m >= 3 ? RED : hi;
     g.fillText(`КОМБО ${combo}` + (m > 1 ? `  ×${m}` : ''), W / 2, 79);
     g.fillRect(W / 2 - 50, 85, 100 * clamp(comboT / 2.6, 0, 1), 4);
   }
-  g.textAlign = 'right'; g.font = `700 30px ${FONT}`; g.fillStyle = hi; g.fillText(Math.floor(score), W - 16, 50);
-  g.font = `700 14px ${FONT}`; g.fillText('УБИТО ' + kills, W - 16, 70);
+  g.textAlign = 'right'; g.font = `700 ${narrow ? 22 : 30}px ${FONT}`; g.fillStyle = hi; g.fillText(Math.floor(score), W - 16, narrow ? 46 : 50);
+  g.font = `700 ${narrow ? 12 : 14}px ${FONT}`; g.fillText('УБИТО ' + kills, W - 16, 70);
   const boss = enemies.find(e => e.type === 'boss');
   if (boss) {
     const w = Math.min(520, W - 220), x = (W - w) / 2, y = H - 40;
@@ -1078,9 +1109,9 @@ function draw() {
   for (const m of gems) if (m.relic) arrow(m.x, m.y, OCH); else if (m.pw) arrow(m.x, m.y, PW[m.pw].col); else if (m.heal) arrow(m.x, m.y, GRN);
   // объявления: плашка-штамп
   if (toastT > 0) {
-    g.globalAlpha = Math.min(1, toastT * 2); g.textAlign = 'center'; g.font = `700 30px ${FONT}`;
+    g.globalAlpha = Math.min(1, toastT * 2); g.textAlign = 'center'; g.font = `700 ${Math.min(30, Math.floor(W / (toastS.length * .62 + 2)))}px ${FONT}`;
     const tw = g.measureText(toastS).width, band = ink2(toastCol) === INK ? hi : ink2(toastCol);
-    g.save(); g.translate(W / 2, H * .24); g.rotate(-.035);
+    g.save(); g.translate(W / 2, Math.max(H * .24, 150)); g.rotate(-.035);
     g.fillStyle = band === hi ? RED : hi; g.fillRect(-tw / 2 - 16, -29, tw + 44, 46);
     g.fillStyle = band; g.fillRect(-tw / 2 - 22, -35, tw + 44, 46);
     g.fillStyle = band === hi ? lo : '#f4eddb'; g.fillText(toastS, 0, -1); g.restore(); g.globalAlpha = 1;
@@ -1091,8 +1122,8 @@ function draw() {
       T < 12 ? 'Собирай кристаллы — это опыт и новые улучшения' :
       T < 19 ? (tm ? 'Тап справа — рывок сквозь врагов' : pad.on ? 'A — рывок сквозь врагов' : 'ПРОБЕЛ — рывок сквозь врагов') :
       (tm ? 'Кнопка в углу — способность корабля, когда заполнится' : pad.on ? 'X — способность корабля, когда круг заполнится' : 'Q — способность корабля, когда круг в углу заполнится');
-    g.textAlign = 'center'; g.font = `500 17px ${FONT}`; const tw = g.measureText(h.toUpperCase()).width;
-    g.fillStyle = hi; g.fillRect(W / 2 - tw / 2 - 14, H - 112, tw + 28, 32); g.fillStyle = lo; g.fillText(h.toUpperCase(), W / 2, H - 90);
+    g.textAlign = 'center'; g.font = `500 ${Math.min(17, Math.floor(W / (h.length * .52)))}px ${FONT}`; const tw = g.measureText(h.toUpperCase()).width;
+    g.fillStyle = hi; g.fillRect(W / 2 - tw / 2 - 14, H - 172, tw + 28, 32); g.fillStyle = lo; g.fillText(h.toUpperCase(), W / 2, H - 150);
   }
   // способность корабля
   const ux = W - 60, uy = H - 60, full = P.ult >= 1, pulse = full ? Math.sin(T * 7) * 2 : 0;
@@ -1159,7 +1190,16 @@ addEventListener('pointermove', e => {
 const up = e => { if (stick && e.pointerId === stick.id) stick = null; };
 addEventListener('pointerup', up); addEventListener('pointercancel', up);
 $('play').onclick = start; $('again').onclick = start; $('resume').onclick = togglePause;
-$('reroll').onclick = reroll; $('restart').onclick = () => { if (state === 'pause') start(); }; $('cont').onclick = () => { if (state === 'win') { state = 'play'; show(null); } }; $('winQuit').onclick = () => { if (state === 'win') { state = 'play'; P.revive = 0; P.inv = 0; P.hp = 0; gameOver(); } }; $('hangar').onclick = toMenu; $('quit').onclick = toMenu;
+$('reroll').onclick = reroll;
+$('codexBtn').onclick = () => {
+  $('codexList').innerHTML = CODEX.map(([k, n, d]) => {
+    const t = TYPES[k], bz = BOSS[k], sides = t ? t.n : bz.s, col = t ? t.col : bz.col; let pts = '';
+    for (let i = 0; i < sides; i++) { const a = -Math.PI / 2 + i * TAU / sides; pts += `${(Math.cos(a) * 16).toFixed(1)},${(Math.sin(a) * 16).toFixed(1)} `; }
+    return `<div class="chip codex"><div class="ic"><svg viewBox="-20 -20 40 40"><polygon points="${pts}" fill="${col}" stroke="#1b1814" stroke-width="2.5" stroke-linejoin="round"/>${bz ? '<rect x="-5" y="-5" width="10" height="10" fill="#1b1814" transform="rotate(45)"/>' : ''}</svg></div><div class="nm">${n}</div><div class="ds">${d}</div></div>`;
+  }).join('') + '<div class="chip codex"><div class="ic"><svg viewBox="-20 -20 40 40"><circle r="17" fill="none" stroke="#1b1814" stroke-width="2" stroke-dasharray="5 4"/><polygon points="0,-10 9,6 -9,6" fill="#d4301f" stroke="#1b1814" stroke-width="2"/></svg></div><div class="nm">Элита</div><div class="ds">Любой враг в пунктирном круге: вчетверо крепче, с него падает бонус.</div></div>';
+  show('codex');
+};
+$('codexBack').onclick = () => show('menu'); $('restart').onclick = () => { if (state === 'pause') start(); }; $('cont').onclick = () => { if (state === 'win') { state = 'play'; show(null); } }; $('winQuit').onclick = () => { if (state === 'win') { state = 'play'; P.revive = 0; P.inv = 0; P.hp = 0; gameOver(); } }; $('hangar').onclick = toMenu; $('quit').onclick = toMenu;
 if (matchMedia('(pointer:coarse)').matches) $('touchHint').style.display = 'block';
 renderMenu();
 </script>
