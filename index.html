@@ -221,38 +221,29 @@ function ball(x, cx, cy, r, col) { x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fi
 function glass(x, cx, cy, rx, ry) { x.beginPath(); x.ellipse(cx, cy, rx * 1.1, ry * 1.25, 0, 0, TAU); x.fillStyle = '#2ce8f5'; x.fill(); }
 function seam() {}
 function lamp(x, cx, cy, r, col) { if (r < 1.5) return; x.beginPath(); x.arc(cx, cy, r * 1.15, 0, TAU); x.fillStyle = col; x.fill(); }
+// простые фигуры: у каждого типа своя форма и цвет
+function ngon(x, n, r, col, rot) { const p = []; for (let i = 0; i < n; i++) { const a = (rot || 0) + i * TAU / n; p.push(Math.cos(a) * r, Math.sin(a) * r); } plate(x, p, col); }
 const DRAW = {
-  ship_assault(x, a) { plate(x, [3, -4, -9, -17, -15, -16, -10, -4], a, 1); plate(x, [-7, -18, 3, -18, 3, -16.4, -7, -16.4], GUN, 1); plate(x, [-19, -5, -14, -5, -14, -1.5, -19, -1.5], GUN, 1);
-    plate(x, [21, 0, 8, -5, -9, -6, -15, -3, -15, 3, -9, 6, 8, 5], HULL); seam(x, [-2, -5.6, -2, 5.6, -9, -6, -9, 6]); glass(x, 6, 0, 5.5, 2.6); },
-  ship_sniper(x, a) { plate(x, [-4, -3.5, -15, -11, -18, -10, -13, -3.5], a, 1); plate(x, [-22, -2, -17, -2, -17, 2, -22, 2], GUN);
-    plate(x, [20, -1, 30, -.8, 30, .8, 20, 1], GUN); plate(x, [24, 0, 6, -3.6, -13, -4.6, -18, -2, -18, 2, -13, 4.6, 6, 3.6], HULL); seam(x, [-6, -4.2, -6, 4.2, 10, -3, 10, 3]); glass(x, 2, 0, 5, 2.1); },
-  ship_berserk(x, a) { plate(x, [9, -6, 5, -18, -8, -17, -11, -13, -7, -6], a, 1); plate(x, [3, -19.5, 14, -19.5, 14, -17.3, 3, -17.3], GUN, 1); plate(x, [-17, -6.5, -12, -6.5, -12, -2, -17, -2], GUN, 1);
-    plate(x, [16, 0, 8, -7, -8, -8.5, -13, -4, -13, 4, -8, 8.5, 8, 7], HULL); seam(x, [-3, -8, -3, 8, 8, -7, 8, 7]); glass(x, 4, 0, 4.5, 3.2); },
-  ship_ghost(x, a) { plate(x, [21, 0, -13, -14, -7, -5, -11, 0, -7, 5, -13, 14], '#4a586e'); plate(x, [8, -3.5, -9, -11.5, -10.5, -9.5, 4, -2.3], a, 1); seam(x, [14, 0, -9, 0]); glass(x, 4, 0, 5, 2.2); },
-  ship_engineer(x, a) { plate(x, [6, -13.5, -10, -13.5, -13, -9, 9, -9], a, 1); plate(x, [-19, -6, -15, -6, -15, -2, -19, -2], GUN, 1);
-    plate(x, [15, -4, 12, -9, -12, -9, -15, -5, -15, 5, -12, 9, 12, 9, 15, 4], HULL); seam(x, [3, -9, 3, 9, -9, -9, -9, 9]); ball(x, -3, 0, 4.6, '#8b97aa'); lamp(x, -3, 0, 1.1, a); glass(x, 9.5, 0, 3, 3.4); },
-  grunt(x, c) { plate(x, [0, -4.5, -9, -12, -12, -11, -8, -4], shade(c, -.38), 1); plate(x, [13, 0, 0, -5, -9, -4.5, -12, 0, -9, 4.5, 0, 5], c); seam(x, [-4, -4.6, -4, 4.6]); lamp(x, 5, 0, 1.7, '#ffb347'); },
-  runner(x, c) { plate(x, [-1, -2.5, -9, -9, -10, -7, -6, -2.5], shade(c, -.38), 1); plate(x, [11, 0, -5, -3.2, -9, 0, -5, 3.2], c); lamp(x, 3, 0, 1.2, '#fff3a0'); },
-  tank(x, c) { plate(x, [14, -12, 8, -19, -14, -20, -20, -13, -18, -10, 12, -10], shade(c, -.38), 1); plate(x, [22, 0, 13, -11, -15, -12, -21, -6, -21, 6, -15, 12, 13, 11], c);
-    seam(x, [6, -11, 6, 11, -9, -12, -9, 12, -15, -12, -21, -6]); plate(x, [2, -2.2, 21, -1.6, 21, 1.6, 2, 2.2], '#3d394d'); ball(x, -2, 0, 8, shade(c, .12)); lamp(x, -16, -7, 1.1, '#ff5a4a'); lamp(x, -16, 7, 1.1, '#ff5a4a'); },
-  shooter(x, c) { plate(x, [-2, -5, -10, -13, -13, -11, -9, -5], shade(c, -.38), 1); plate(x, [4, -1.7, 19, -1.2, 19, 1.2, 4, 1.7], '#33414a'); plate(x, [8, -5.5, -8, -7, -12, 0, -8, 7, 8, 5.5, 11, 0], c); seam(x, [-3, -6.5, -3, 6.5]); lamp(x, 2, 0, 2, '#7dffd9'); },
-  splitter(x, c) { ball(x, 0, 0, 9, shade(c, -.38)); for (let i = 0; i < 3; i++) { const a = i * TAU / 3 + .5; ball(x, Math.cos(a) * 9, Math.sin(a) * 9, 7.6, c); } lamp(x, 0, 0, 1.6, '#ffe08a'); },
-  mini(x, c) { ball(x, 0, 0, 6.2, c); lamp(x, -1, -1, .9, '#ffe08a'); },
-  bomber(x) { for (let i = 0; i < 8; i++) { x.save(); x.rotate(i * TAU / 8); plate(x, [6, -2.6, 12.5, 0, 6, 2.6], '#6a6472'); x.restore(); } ball(x, 0, 0, 8, '#3b3640'); seam(x, [-6, 0, 6, 0]); },
-  laser(x, c) { for (const s of [1, -1]) plate(x, [-5, -22 * s, 5, -22 * s, 5, -9 * s, -5, -9 * s], '#124e89');
-    ball(x, 0, 0, 9, '#9aa7bd'); ball(x, 6, 0, 4.6, '#182033'); lamp(x, 7, 0, 1.5, '#ff5a5a'); },
-  boss_ring(x, c) { ball(x, 0, 0, 44, '#6e3a36'); 
-    for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ball(x, Math.cos(a) * 38, Math.sin(a) * 38, 7, '#5d5766'); lamp(x, Math.cos(a) * 38, Math.sin(a) * 38, 1.4, '#ffb347'); } ball(x, 0, 0, 16, c); lamp(x, 0, 0, 3, '#ffd27a'); },
-  boss_spiral(x, c) { for (let i = 0; i < 3; i++) { x.save(); x.rotate(i * TAU / 3); plate(x, [6, -9, 40, -19, 47, -6, 31, 3, 8, 9], c); seam(x, [14, -11, 12, 6, 28, -15, 26, 3]); lamp(x, 41, -9, 1.6, '#bfe0ff'); x.restore(); } ball(x, 0, 0, 18, '#8a96b0'); lamp(x, 0, 0, 4.5, '#9fd0ff'); },
-  boss_charger(x, c) { plate(x, [-4, -16, -34, -40, -44, -34, -30, -14], shade(c, -.38), 1); plate(x, [-48, -13, -40, -13, -40, -4, -48, -4], GUN, 1);
-    plate(x, [44, 0, 20, -16, -30, -20, -42, -10, -42, 10, -30, 20, 20, 16], c); seam(x, [8, -17, 8, 17, -16, -19, -16, 19, -30, -20, -30, 20]); plate(x, [52, 0, 26, -10, 22, 0, 26, 10], '#d9d2c4'); glass(x, -4, 0, 8, 5); },
-  boss_core(x, c) { ball(x, 0, 0, 58, '#3e2731'); ball(x, 0, 0, 40, '#733e39'); ball(x, 0, 0, 22, '#a22633'); ball(x, 0, 0, 11, c); },
-  blade(x) { const p = []; for (let i = 0; i < 6; i++) { const a = i * TAU / 6, r = i % 2 ? 3.2 : 11; p.push(Math.cos(a) * r, Math.sin(a) * r); } plate(x, p, '#d7dde8'); ball(x, 0, 0, 2.4, '#e0b23c'); },
-  drone(x, a) { plate(x, [2, -4, -6, -8, -8, -5, -3, -3], a, 1); ball(x, 0, 0, 4.6, '#aab4c6'); lamp(x, 2.2, 0, .9, '#bfe9ff'); },
-  turret(x, a) { const p = []; for (let i = 0; i < 6; i++) { const an = i * TAU / 6; p.push(Math.cos(an) * 14, Math.sin(an) * 14); } plate(x, p, '#5c6880'); plate(x, [0, -2, 17, -1.5, 17, 1.5, 0, 2], GUN); ball(x, 0, 0, 7, a); lamp(x, 0, 0, 1.3, '#fff'); },
-  gem(x, c) { const r = 6.5; for (const [ax, ay, bx, by, f] of [[0, -r, -r * .7, 0, .5], [0, -r, r * .7, 0, .15], [0, r, -r * .7, 0, -.2], [0, r, r * .7, 0, -.5]]) { x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.lineTo(0, 0); x.closePath(); x.fillStyle = shade(c, f); x.fill(); }
-    x.beginPath(); x.moveTo(0, -r); x.lineTo(r * .7, 0); x.lineTo(0, r); x.lineTo(-r * .7, 0); x.closePath(); x.strokeStyle = shade(c, -.6); x.lineWidth = .8; x.stroke(); },
-  heal(x) { ball(x, 0, 0, 9, '#e9eef5'); x.fillStyle = '#2fae5f'; x.fillRect(-1.8, -5.5, 3.6, 11); x.fillRect(-5.5, -1.8, 11, 3.6); }
+  ship_assault(x, a) { plate(x, [18, 0, -12, -12, -6, 0, -12, 12], a); },
+  ship_sniper(x, a) { plate(x, [24, 0, -13, -7, -8, 0, -13, 7], a); },
+  ship_berserk(x, a) { plate(x, [14, 0, -10, -16, -3, 0, -10, 16], a); },
+  ship_ghost(x, a) { plate(x, [19, 0, -3, -8, -14, -11, -8, 0, -14, 11, -3, 8], a); },
+  ship_engineer(x, a) { plate(x, [16, 0, 2, -11, -13, -8, -13, 8, 2, 11], a); },
+  grunt(x, c) { ngon(x, 3, 12, c); },
+  runner(x, c) { plate(x, [12, 0, -8, -5, -8, 5], c); },
+  tank(x, c) { ngon(x, 6, 21, c); ngon(x, 6, 9, shade(c, -.38)); },
+  shooter(x, c) { ngon(x, 4, 13, c); plate(x, [6, -2.5, 17, -2.5, 17, 2.5, 6, 2.5], c); },
+  splitter(x, c) { ngon(x, 5, 17, c); ngon(x, 5, 7, shade(c, -.38)); },
+  mini(x, c) { ngon(x, 5, 7, c); },
+  bomber(x, c) { ball(x, 0, 0, 10, c); },
+  laser(x, c) { plate(x, [16, 0, 0, -9, -16, 0, 0, 9], c); ball(x, 5, 0, 3.5, '#ffffff'); },
+  boss_ring(x, c) { ngon(x, 8, 46, c, TAU / 16); ngon(x, 4, 18, '#181425', TAU / 8); },
+  boss_spiral(x, c) { ngon(x, 6, 46, c); ngon(x, 3, 20, '#181425'); },
+  boss_charger(x, c) { plate(x, [50, 0, -34, -38, -20, 0, -34, 38], c); },
+  boss_core(x, c) { ball(x, 0, 0, 58, '#a22633'); ball(x, 0, 0, 34, '#181425'); ball(x, 0, 0, 18, c); },
+  blade(x) { ngon(x, 3, 10, '#fee761'); },
+  drone(x, a) { ngon(x, 4, 7, a); },
+  turret(x, a) { ngon(x, 6, 14, '#5a6988'); ngon(x, 4, 7, a); }
 };
 const PF = '"Press Start 2P",monospace', BF = '500 1px "Handjet","PT Sans",sans-serif'.slice(8);
 // палитра из 32 цветов: все спрайты приводятся к ней, отсюда цельный вид
